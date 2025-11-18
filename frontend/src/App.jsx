@@ -5,6 +5,9 @@ import { Flame, Github, Share2, Trophy, Clock, GitBranch, Code2, Zap, AlertCircl
 import axios from 'axios'
 import './App.css'
 
+// API URL configuration - uses environment variable or falls back to relative path
+const API_URL = import.meta.env.VITE_API_URL || '/api'
+
 function App() {
   const [repoPath, setRepoPath] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,7 +26,7 @@ function App() {
     setRoastData(null)
 
     try {
-      const response = await axios.post('/api/roast', { repoPath })
+      const response = await axios.post(`${API_URL}/roast`, { repoPath })
       setRoastData(response.data)
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 5000)

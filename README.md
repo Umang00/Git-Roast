@@ -254,20 +254,28 @@ Check if the API is running
 
 ## 🚀 Deployment
 
-### Frontend (Vercel/Netlify)
-```bash
-cd frontend
-npm run build
-# Deploy the 'dist' folder
-```
+**Ready to deploy? Check out the complete [DEPLOYMENT.md](./DEPLOYMENT.md) guide!**
 
-### Backend (Heroku/Railway/Render)
-```bash
-cd backend
-# Deploy with your preferred platform
-```
+### Quick Deploy Summary
 
-Don't forget to update the API URL in `frontend/vite.config.js`!
+**Frontend on Vercel** (Recommended)
+1. Connect your GitHub repo to Vercel
+2. Set build command: `cd frontend && npm install && npm run build`
+3. Set output directory: `frontend/dist`
+4. Add environment variable: `VITE_API_URL=https://your-backend-url/api`
+5. Deploy! 🚀
+
+**Backend on Railway** (Recommended)
+1. Connect your GitHub repo to Railway
+2. Set root directory: `backend`
+3. Auto-deploys with `npm start`
+4. Get your backend URL
+5. Update Vercel's `VITE_API_URL` with your Railway URL
+
+**Total deployment time:** ~15 minutes
+**Cost:** $0 (free tiers)
+
+For detailed step-by-step instructions, troubleshooting, and alternatives (Render, Fly.io), see **[DEPLOYMENT.md](./DEPLOYMENT.md)**
 
 ---
 
