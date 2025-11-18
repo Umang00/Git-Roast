@@ -2,15 +2,30 @@
 
 <div align="center">
 
-### **The viral web app that analyzes your git history and roasts your coding habits with zero mercy** 💀
+### **The viral web app that analyzes ANY GitHub repository and roasts coding habits with zero mercy** 💀
 
 [![Made with React](https://img.shields.io/badge/Made%20with-React-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
-[![Powered by Node.js](https://img.shields.io/badge/Powered%20by-Node.js-339933?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?style=for-the-badge&logo=vercel)](https://vercel.com/)
 [![TailwindCSS](https://img.shields.io/badge/Styled%20with-TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![GitHub API](https://img.shields.io/badge/GitHub-API-181717?style=for-the-badge&logo=github)](https://docs.github.com/en/rest)
 
-**Share your Developer Report Card and make both of us go VIRAL! 🚀**
+**Analyze ANY public GitHub repo. Share your results. Go VIRAL! 🚀**
 
 </div>
+
+---
+
+## 🆕 What's New in GitRoast 2.0
+
+### ⚡ **Now 100% Vercel-Compatible!**
+
+- ✨ **Analyze ANY GitHub Repository** - Just paste a GitHub URL!
+- 🚀 **One-Click Deployment** - Deploy everything to Vercel in 5 minutes
+- ⚡ **Serverless Functions** - No separate backend needed
+- 🌍 **Roast Famous Repos** - Try `torvalds/linux`, `facebook/react`, `microsoft/vscode`
+- 📈 **Higher Viral Potential** - Users can roast ANY public repository!
+
+**Deploy Now:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - One-click setup guide!
 
 ---
 
@@ -18,11 +33,12 @@
 
 GitRoast is an **AI-powered web application** that:
 
-- 🔍 **Analyzes your git repository** - Dives deep into your commit history
-- 🔥 **Roasts your coding habits** - Brutally honest, hilariously accurate feedback
+- 🔍 **Analyzes ANY GitHub Repository** - Paste a URL or use `owner/repo` format
+- 🔥 **Roasts Coding Habits** - Brutally honest, hilariously accurate feedback
 - 📊 **Generates a Developer Report Card** - Get graded from A+ to F
 - 🏆 **Awards Dubious Achievements** - "Night Owl Coder", "Bug Factory", etc.
 - 📱 **Creates Shareable Results** - Perfect for Twitter, LinkedIn, Reddit
+- 🌍 **Roast Famous Projects** - Try Linux, React, TensorFlow, or any public repo!
 
 ### Why GitRoast Will Go Viral:
 
@@ -106,10 +122,20 @@ The app will open at:
 ### Quick Test
 
 1. Open http://localhost:3000
-2. Enter a repository path (try `.` for the current directory)
+2. Enter a GitHub repository URL:
+   - Try: `facebook/react`
+   - Or: `https://github.com/torvalds/linux`
+   - Or: `microsoft/vscode`
 3. Click "Roast My Code!" 🔥
-4. Get absolutely destroyed by your own commit history
-5. Share your grade and go viral!
+4. Watch as the AI destroys someone's coding habits
+5. Share the results and go viral!
+
+**Popular Repos to Roast:**
+- `torvalds/linux` - The Linux kernel
+- `facebook/react` - React library
+- `tensorflow/tensorflow` - Google's ML framework
+- `microsoft/vscode` - VS Code editor
+- `YOUR-USERNAME/YOUR-REPO` - Your own projects!
 
 ---
 
@@ -117,26 +143,35 @@ The app will open at:
 
 ```
 gitroast/
-├── frontend/                # React + Vite + TailwindCSS
+├── frontend/                   # React + Vite + TailwindCSS
 │   ├── src/
-│   │   ├── App.jsx         # Main application component
-│   │   ├── App.css         # Additional styles
-│   │   ├── index.css       # TailwindCSS imports
-│   │   └── main.jsx        # React entry point
+│   │   ├── App.jsx            # Main application component
+│   │   ├── App.css            # Additional styles
+│   │   ├── index.css          # TailwindCSS imports
+│   │   └── main.jsx           # React entry point
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── tailwind.config.js
 │   └── postcss.config.js
 │
-├── backend/                 # Node.js + Express API
-│   ├── server.js           # Express server
-│   ├── gitAnalyzer.js      # Git repository analysis
-│   ├── roastEngine.js      # AI roasting engine 🔥
+├── api/                        # Vercel Serverless Functions (NEW! 🎉)
+│   ├── roast.js               # Main roast API endpoint
+│   ├── health.js              # Health check endpoint
+│   ├── githubAnalyzer.js      # GitHub API integration
+│   └── roastEngine.js         # AI roasting engine 🔥
+│
+├── backend/                    # Traditional Node.js backend (legacy)
+│   ├── server.js              # Express server
+│   ├── gitAnalyzer.js         # Local git analysis
+│   ├── roastEngine.js         # Roasting engine
 │   └── package.json
 │
-├── package.json            # Root package with scripts
-└── README.md              # You are here!
+├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
+├── DEPLOYMENT.md              # Multi-platform deployment guide
+├── vercel.json                # Vercel configuration
+├── package.json               # Root package with scripts
+└── README.md                  # You are here!
 ```
 
 ---
@@ -222,28 +257,36 @@ colors: {
 ## 📊 API Endpoints
 
 ### `POST /api/roast`
-Analyze a git repository and get roasted
+Analyze a GitHub repository and get roasted
 
 **Request:**
 ```json
 {
-  "repoPath": "/path/to/repo"
+  "repoUrl": "facebook/react",
+  "githubToken": "optional_token_for_higher_rate_limits"
 }
 ```
 
 **Response:**
 ```json
 {
-  "grade": "B",
-  "gradeDescription": "Not bad, not great...",
+  "grade": "A",
+  "gradeDescription": "Pretty solid developer",
   "stats": {
-    "totalCommits": 500,
-    "lateNightCommits": 150,
-    "avgCommitSize": 42
+    "totalCommits": 15234,
+    "lateNightCommits": 3421,
+    "lateNightPercentage": 22,
+    "avgCommitSize": 87,
+    "authorCount": 1234
   },
   "roasts": [...],
   "achievements": [...],
-  "suggestions": [...]
+  "suggestions": [...],
+  "repository": {
+    "owner": "facebook",
+    "repo": "react",
+    "fullName": "facebook/react"
+  }
 }
 ```
 
@@ -254,28 +297,47 @@ Check if the API is running
 
 ## 🚀 Deployment
 
-**Ready to deploy? Check out the complete [DEPLOYMENT.md](./DEPLOYMENT.md) guide!**
+### ⚡ Vercel One-Click Deploy (Easiest - NEW! 🎉)
 
-### Quick Deploy Summary
+**Deploy everything (frontend + backend) to Vercel in ONE CLICK!**
 
-**Frontend on Vercel** (Recommended)
+1. Click the button below
+2. Connect your GitHub account
+3. Deploy (takes ~3 minutes)
+4. You're LIVE! 🚀
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR-USERNAME/gitroast)
+
+**Features:**
+- ✅ No separate backend hosting needed
+- ✅ Serverless functions auto-configured
+- ✅ 100% free with generous limits
+- ✅ Auto-deploy on git push
+- ✅ Global CDN included
+
+**Total time:** ~5 minutes | **Cost:** $0/month
+
+👉 **Full guide:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Complete Vercel setup instructions!
+
+---
+
+### 🔧 Alternative: Split Deployment (Vercel + Railway)
+
+For local repository analysis (legacy):
+
+**Frontend on Vercel**
 1. Connect your GitHub repo to Vercel
-2. Set build command: `cd frontend && npm install && npm run build`
-3. Set output directory: `frontend/dist`
-4. Add environment variable: `VITE_API_URL=https://your-backend-url/api`
-5. Deploy! 🚀
+2. Auto-detects Vite configuration
+3. Deploy! 🚀
 
-**Backend on Railway** (Recommended)
-1. Connect your GitHub repo to Railway
-2. Set root directory: `backend`
-3. Auto-deploys with `npm start`
-4. Get your backend URL
-5. Update Vercel's `VITE_API_URL` with your Railway URL
+**Backend on Railway**
+1. Connect repo, set root: `backend`
+2. Auto-deploys with `npm start`
+3. Update Vercel's `VITE_API_URL`
 
-**Total deployment time:** ~15 minutes
-**Cost:** $0 (free tiers)
+**Total time:** ~15 minutes | **Cost:** $0-5/month
 
-For detailed step-by-step instructions, troubleshooting, and alternatives (Render, Fly.io), see **[DEPLOYMENT.md](./DEPLOYMENT.md)**
+👉 **Full guide:** [DEPLOYMENT.md](./DEPLOYMENT.md) - Multi-platform deployment options
 
 ---
 

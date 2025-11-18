@@ -9,15 +9,15 @@ import './App.css'
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 function App() {
-  const [repoPath, setRepoPath] = useState('')
+  const [repoUrl, setRepoUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [roastData, setRoastData] = useState(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState('')
 
   const analyzeRepo = async () => {
-    if (!repoPath.trim()) {
-      setError('Please enter a repository path!')
+    if (!repoUrl.trim()) {
+      setError('Please enter a GitHub repository URL!')
       return
     }
 
@@ -26,7 +26,7 @@ function App() {
     setRoastData(null)
 
     try {
-      const response = await axios.post(`${API_URL}/roast`, { repoPath })
+      const response = await axios.post(`${API_URL}/roast`, { repoUrl })
       setRoastData(response.data)
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 5000)
@@ -38,7 +38,8 @@ function App() {
   }
 
   const shareResults = () => {
-    const text = `I just got roasted by GitRoast! 🔥\n\nMy Developer Grade: ${roastData?.grade}\n\nGet roasted at GitRoast!`
+    const repoInfo = roastData?.repository ? ` (${roastData.repository.fullName})` : ''
+    const text = `I just got roasted by GitRoast! 🔥${repoInfo}\n\nMy Developer Grade: ${roastData?.grade}\n\nTry it yourself at GitRoast!`
 
     if (navigator.share) {
       navigator.share({
@@ -145,21 +146,21 @@ function App() {
           <div className="bg-dark-card rounded-2xl p-8 card-glow border border-purple-500/30">
             <div className="flex items-center gap-2 mb-4">
               <Github className="w-6 h-6 text-neon-purple" />
-              <h2 className="text-2xl font-bold">Analyze Your Git Repo</h2>
+              <h2 className="text-2xl font-bold">Analyze Any GitHub Repository</h2>
             </div>
 
             <div className="space-y-4">
               <div>
                 <input
                   type="text"
-                  value={repoPath}
-                  onChange={(e) => setRepoPath(e.target.value)}
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && analyzeRepo()}
-                  placeholder="/path/to/your/repo (or use current directory: .)"
+                  placeholder="https://github.com/facebook/react or facebook/react"
                   className="w-full px-4 py-3 bg-dark-bg border border-purple-500/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple transition-colors"
                 />
                 <p className="text-sm text-gray-400 mt-2">
-                  💡 Tip: Use "." to analyze the current directory
+                  💡 Paste any public GitHub repository URL or use owner/repo format
                 </p>
               </div>
 
