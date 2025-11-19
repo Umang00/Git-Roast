@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
-import { Flame, Github, Share2, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle } from 'lucide-react'
+import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitter, Linkedin, Copy, Check } from 'lucide-react'
 import axios from 'axios'
 import './App.css'
 
@@ -11,9 +11,12 @@ const API_URL = import.meta.env.VITE_API_URL || '/api'
 function App() {
   const [repoUrl, setRepoUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [streaming, setStreaming] = useState(false)
+  const [streamText, setStreamText] = useState('')
   const [roastData, setRoastData] = useState(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -22,37 +25,110 @@ function App() {
     }
 
     setLoading(true)
+    setStreaming(true)
     setError('')
     setRoastData(null)
+    setStreamText('')
 
     try {
-      const response = await axios.post(`${API_URL}/roast`, { repoUrl })
-      setRoastData(response.data)
-      setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 5000)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to analyze. Make sure the username/repo is correct!')
+      // Try streaming endpoint first
+      const response = await fetch(`${API_URL}/roast-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ repoUrl }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Streaming failed, falling back to regular endpoint')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'stats') {
+                // Initial stats received
+                console.log('Stats received:', data.data)
+              } else if (data.type === 'chunk') {
+                // Streaming text chunk
+                setStreamText(prev => prev + data.text)
+              } else if (data.type === 'complete' || data.type === 'fallback') {
+                // Complete roast data
+                setRoastData(data.data)
+                setShowConfetti(true)
+                setTimeout(() => setShowConfetti(false), 5000)
+              } else if (data.type === 'error') {
+                throw new Error(data.error)
+              }
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError)
+            }
+          }
+        }
+      }
+    } catch (streamError) {
+      console.warn('Streaming failed, using regular endpoint:', streamError)
+
+      // Fallback to regular non-streaming endpoint
+      try {
+        const response = await axios.post(`${API_URL}/roast`, { repoUrl })
+        setRoastData(response.data)
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 5000)
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to analyze. Make sure the username/repo is correct!')
+      }
     } finally {
       setLoading(false)
+      setStreaming(false)
+      setStreamText('')
     }
   }
 
-  const shareResults = () => {
+  const shareToTwitter = () => {
     const isProfile = roastData?.analysisType === 'profile'
-    const repoInfo = roastData?.repository ?
-      (isProfile ? ` (@${roastData.repository.username} profile)` : ` (${roastData.repository.fullName})`) : ''
-    const text = `I just got roasted by GitRoast! 🔥${repoInfo}\n\nMy Developer Grade: ${roastData?.grade}\n\nTry it yourself at GitRoast!`
-
-    if (navigator.share) {
-      navigator.share({
-        title: 'GitRoast - My Coding Report Card',
-        text: text,
-      })
-    } else {
-      navigator.clipboard.writeText(text)
-      alert('Copied to clipboard! Share it on social media!')
-    }
+    const target = roastData?.repository ?
+      (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName) : 'my code'
+    const text = `I just got ROASTED by GitRoast! 🔥\n\n${target} - Grade: ${roastData?.grade}\n\nGet your code brutally roasted:`
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
   }
+
+  const shareToLinkedIn = () => {
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`
+    window.open(url, '_blank')
+  }
+
+  const copyToClipboard = () => {
+    const isProfile = roastData?.analysisType === 'profile'
+    const target = roastData?.repository ?
+      (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName) : 'my code'
+    const text = `I just got ROASTED by GitRoast! 🔥\n\n${target} - Developer Grade: ${roastData?.grade}\n\nGet your code brutally roasted at GitRoast!`
+
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => setCopied(false), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [copied])
 
   const getGradeColor = (grade) => {
     const colors = {
@@ -134,7 +210,7 @@ function App() {
             Get Your Code Brutally Roasted by AI 🔥
           </p>
           <p className="text-lg text-gray-400">
-            Discover your coding sins, share your developer report card, and go viral!
+            Powered by Google Gemini AI - Savage, Streaming, Shareable
           </p>
         </motion.div>
 
@@ -196,7 +272,7 @@ function App() {
                     >
                       <Zap className="w-5 h-5" />
                     </motion.div>
-                    Analyzing Your Coding Sins...
+                    {streaming ? 'AI is Roasting Your Code...' : 'Analyzing Your Coding Sins...'}
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
@@ -208,6 +284,37 @@ function App() {
             </div>
           </div>
         </motion.div>
+
+        {/* Streaming Text Display */}
+        {streaming && streamText && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto mb-6"
+          >
+            <div className="bg-dark-card rounded-2xl p-6 card-glow border border-neon-purple/50">
+              <div className="flex items-center gap-2 mb-3">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Zap className="w-5 h-5 text-neon-purple" />
+                </motion.div>
+                <h3 className="text-lg font-bold text-neon-purple">AI is cooking up your roast...</h3>
+              </div>
+              <div className="text-gray-300 font-mono text-sm whitespace-pre-wrap break-words">
+                {streamText}
+                <motion.span
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="text-neon-purple"
+                >
+                  ▌
+                </motion.span>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Results Section */}
         <AnimatePresence>
@@ -241,15 +348,51 @@ function App() {
 
                 <p className="text-xl text-gray-300 mb-6">{roastData.gradeDescription}</p>
 
-                <motion.button
-                  onClick={shareResults}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 rounded-lg font-bold flex items-center gap-2 mx-auto hover:shadow-lg transition-shadow"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Share2 className="w-5 h-5" />
-                  Share Your Grade
-                </motion.button>
+                {/* Social Share Buttons */}
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <motion.button
+                    onClick={shareToTwitter}
+                    className="bg-gradient-to-r from-blue-400 to-blue-600 px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-shadow"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Twitter className="w-5 h-5" />
+                    Share on Twitter
+                  </motion.button>
+
+                  <motion.button
+                    onClick={shareToLinkedIn}
+                    className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-shadow"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Linkedin className="w-5 h-5" />
+                    Share on LinkedIn
+                  </motion.button>
+
+                  <motion.button
+                    onClick={copyToClipboard}
+                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-all ${
+                      copied
+                        ? 'bg-gradient-to-r from-green-500 to-green-700'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-600'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" />
+                        Copy to Clipboard
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </motion.div>
 
               {/* Profile Info (if analyzing a profile) */}
@@ -402,8 +545,8 @@ function App() {
           transition={{ delay: 1 }}
           className="text-center mt-16 text-gray-500"
         >
-          <p className="mb-2">Made with 🔥 by AI that loves roasting code</p>
-          <p className="text-sm">Share your roast and make both of us go viral! 🚀</p>
+          <p className="mb-2">Powered by Google Gemini AI 🤖 • Made with 🔥 and no mercy</p>
+          <p className="text-sm">Share your savage roast and go viral! 🚀</p>
         </motion.div>
       </div>
     </div>

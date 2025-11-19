@@ -14,10 +14,18 @@
     "build": "cd frontend && npm run build",
     "start": "vercel dev"
   },
-  "keywords": ["git", "roast", "ai", "developer", "humor", "viral"],
+  "keywords": [
+    "git",
+    "roast",
+    "ai",
+    "developer",
+    "humor",
+    "viral"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^20.0.2"
   },
   "devDependencies": {
