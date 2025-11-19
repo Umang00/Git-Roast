@@ -1,9 +1,11 @@
 import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
+import { generateAIRoast } from './aiRoastGenerator.js';
 import { generateRoast } from './roastEngine.js';
 
 /**
  * Vercel Serverless Function for GitRoast
- * Analyzes GitHub repositories or user profiles and generates roasts
+ * Analyzes GitHub repositories or user profiles and generates AI-powered roasts
+ * Falls back to template-based roasts if AI fails
  */
 export default async function handler(req, res) {
   // Enable CORS
@@ -49,12 +51,29 @@ export default async function handler(req, res) {
       gitStats = await analyzeGitHubRepo(`${inputType.owner}/${inputType.repo}`, githubToken);
     }
 
-    // Generate roasts based on the analysis
-    const roastData = generateRoast(gitStats);
+    // Add analysis type to stats
+    gitStats.analysisType = inputType.type;
 
-    // Add repository/profile info to response
+    // Try AI-powered roasts first, fall back to templates if it fails
+    let roastData;
+    try {
+      console.log('Attempting AI-powered roast generation...');
+      roastData = await generateAIRoast(gitStats);
+      console.log('AI roast generated successfully');
+    } catch (aiError) {
+      console.warn('AI roast generation failed, falling back to templates:', aiError.message);
+      roastData = generateRoast(gitStats);
+    }
+
+    // Add repository/profile info and stats to response
     roastData.repository = gitStats.repositoryInfo;
     roastData.analysisType = inputType.type;
+    roastData.stats = {
+      totalCommits: gitStats.totalCommits,
+      lateNightCommits: gitStats.lateNightCommits,
+      lateNightPercentage: gitStats.lateNightPercentage,
+      avgCommitSize: gitStats.avgCommitSize,
+    };
 
     res.status(200).json(roastData);
   } catch (error) {

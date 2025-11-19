@@ -1,4 +1,4 @@
-# 🚀 GitRoast Quick Start Guide (Vercel Edition)
+# 🚀 GitRoast Quick Start Guide (AI-Powered Edition)
 
 ## TL;DR - Get Running in 2 Minutes
 
@@ -6,52 +6,64 @@
 # 1. Install dependencies
 npm run install:all
 
-# 2. (Optional) Add GitHub token for higher rate limits
-echo "GITHUB_TOKEN=your_token_here" > .env
+# 2. (RECOMMENDED) Add Gemini API key for AI-powered roasts
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 
-# 3. Run everything
+# 3. (Optional) Add GitHub token for higher rate limits
+echo "GITHUB_TOKEN=your_github_token_here" >> .env
+
+# 4. Run everything
 npm run dev
 
-# 4. Open http://localhost:3000 and roast some code! 🔥
+# 5. Open http://localhost:3000 and get BRUTALLY roasted! 🔥
 ```
+
+**Get FREE Gemini API Key:** https://aistudio.google.com/app/apikey
 
 ---
 
-## What Changed? (GitRoast 2.0)
+## What's New? (GitRoast 3.0)
 
-### ✅ Now (Vercel Architecture)
+### 🤖 Now (AI-Powered + Vercel Architecture)
+- **AI-Powered Roasts**: Google Gemini generates dynamic, savage roasts
+- **Streaming Responses**: Watch roasts being generated in real-time
+- **Social Sharing**: Twitter, LinkedIn, clipboard - one click
+- **Profile Analysis**: Roast entire GitHub profiles
 - **One command**: `npm run dev`
 - **One deployment**: Everything on Vercel
-- **GitHub API**: Analyze ANY public repo
+- **GitHub API**: Analyze ANY public repo or profile
 - **Serverless**: Auto-scaling, no backend management
-- **Free**: 100% free to run and deploy
+- **Free**: Gemini + Vercel free tiers
 
-### ❌ Before (Split Architecture)
-- Two commands: frontend + backend separately
-- Two deployments: Vercel + Railway/Render
-- Local only: Could only analyze repos on your machine
-- Backend server: Manual scaling, port management
-- $0-5/month: Backend hosting costs
+### ❌ Before (GitRoast 2.0 - Template-Based)
+- Template roasts only (generic)
+- No streaming
+- Basic share button
+- Single repo only
+- Still needed Vercel + serverless
+- $0/month
 
 ---
 
 ## How It Works Now
 
 ```
-User Input (GitHub URL)
+User Input (GitHub URL or username)
     ↓
-Frontend (Vite) → /api/roast
+Frontend (Vite) → /api/roast-stream (SSE) or /api/roast (fallback)
     ↓
-Vercel Serverless Function (api/roast.js)
+Vercel Serverless Function
     ↓
-GitHub API (via @octokit/rest)
+GitHub API (via @octokit/rest) → Analyze commits, README, metadata
     ↓
-Roast Engine (api/roastEngine.js)
+Google Gemini AI → Generate brutal, personalized roasts
+    ↓     ↓ (fallback if AI fails)
+    ↓     Template Roasts (api/roastEngine.js)
     ↓
-JSON Response → Frontend displays results 🔥
+Streaming Response → Frontend displays AI roasts in real-time 🔥
 ```
 
-**No Express server needed!** Everything runs through Vercel's serverless platform.
+**No Express server needed!** Everything runs through Vercel's serverless platform + Google Gemini AI.
 
 ---
 
@@ -99,13 +111,23 @@ gitroast/
 Create `.env` in the root directory:
 
 ```env
-# Optional but recommended
+# RECOMMENDED - Get FREE key at: https://aistudio.google.com/app/apikey
+# Enables AI-powered roasts (falls back to templates without it)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional but recommended for higher rate limits
 # Get yours at: https://github.com/settings/tokens
 # No permissions needed for public repos!
 GITHUB_TOKEN=ghp_your_token_here
 ```
 
-### Why Add a Token?
+### Why Add Gemini API Key?
+- **Without key**: Uses template-based roasts (still funny!)
+- **With key**: AI-generated, personalized, SAVAGE roasts
+- **FREE**: Google provides generous free tier
+- **Better**: References specific stats and patterns
+
+### Why Add GitHub Token?
 - **Without token**: 60 API requests/hour (GitHub rate limit)
 - **With token**: 5,000 API requests/hour
 - **No special permissions needed** for public repositories
@@ -223,4 +245,4 @@ fetch('/api/roast', {
 
 ---
 
-**You're now running GitRoast 2.0 - fully serverless, fully awesome! 🔥**
+**You're now running GitRoast 3.0 - AI-powered, streaming, and SAVAGE! 🔥**
