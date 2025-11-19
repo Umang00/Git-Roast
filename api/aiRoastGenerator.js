@@ -40,15 +40,35 @@ function getGeminiClient() {
 }
 
 /**
- * Distill stats to only include aggregate metrics for the LLM prompt
- * Removes PII (author names, emails) and reduces payload size significantly
+ * Distill stats to include meaningful examples for good roasts
+ * Balances context quality with payload size and privacy
  */
 function distillStatsForPrompt(stats) {
+  // Select intelligent commit message samples
+  const messages = stats.commitMessages || [];
+  const sampleMessages = [];
+
+  if (messages.length > 0) {
+    // Recent commits (first 10) - shows current patterns
+    sampleMessages.push(...messages.slice(0, Math.min(10, messages.length)));
+
+    // If more than 10 commits, add diverse samples
+    if (messages.length > 10) {
+      // Middle commits (5 random samples for variety)
+      const middleStart = Math.floor(messages.length / 3);
+      const middleEnd = Math.floor(2 * messages.length / 3);
+      sampleMessages.push(...messages.slice(middleStart, middleStart + 5));
+
+      // Oldest commits (last 5) - shows evolution
+      sampleMessages.push(...messages.slice(-5));
+    }
+  }
+
   return {
     analysisType: stats.analysisType,
     repositoryInfo: stats.repositoryInfo,
 
-    // Aggregate commit statistics (no raw data)
+    // Aggregate commit statistics
     totalCommits: stats.totalCommits,
     lateNightCommits: stats.lateNightCommits,
     lateNightPercentage: stats.lateNightPercentage,
@@ -63,17 +83,18 @@ function distillStatsForPrompt(stats) {
     mergeCommits: stats.mergeCommits,
     averageMessageLength: stats.averageMessageLength,
 
-    // Examples only (not all 500+ messages!)
+    // Meaningful examples (best/worst/representative)
     shortestMessage: stats.shortestMessage,
     longestMessage: stats.longestMessage,
-    exampleMessages: stats.commitMessages?.slice(0, 5) || [], // Only 5 examples
+    sampleCommitMessages: sampleMessages, // ~20 intelligent samples
 
-    // Patterns and metadata
+    // Temporal patterns
     suspiciousPatterns: stats.suspiciousPatterns,
     authorCount: stats.authorCount,
     commitsByDayOfWeek: stats.commitsByDayOfWeek,
+    commitsByHour: stats.commitsByHour, // Added for time-of-day roasts
 
-    // README and repo metadata
+    // Documentation quality
     readmeAnalysis: stats.readmeAnalysis,
     repoMetadata: stats.repoMetadata,
   };

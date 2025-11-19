@@ -48,40 +48,57 @@ function App() {
         throw new Error('Streaming failed, falling back to regular endpoint')
       }
 
+      if (!response.body) {
+        throw new Error('Streaming not supported in this environment')
+      }
+
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let buffer = '' // Buffer for partial SSE lines
+
+      const processLine = (line) => {
+        if (!line.startsWith('data: ')) return
+
+        try {
+          const data = JSON.parse(line.slice(6))
+
+          if (data.type === 'stats') {
+            // Initial stats received (don't log to avoid leaking PII)
+          } else if (data.type === 'chunk') {
+            // Streaming text chunk
+            setStreamText(prev => prev + data.text)
+          } else if (data.type === 'complete' || data.type === 'fallback') {
+            // Complete roast data
+            setRoastData(data.data)
+            setShowConfetti(true)
+            setTimeout(() => setShowConfetti(false), 5000)
+          } else if (data.type === 'error') {
+            throw new Error(data.error)
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE data:', parseError)
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-
-              if (data.type === 'stats') {
-                // Initial stats received
-                console.log('Stats received:', data.data)
-              } else if (data.type === 'chunk') {
-                // Streaming text chunk
-                setStreamText(prev => prev + data.text)
-              } else if (data.type === 'complete' || data.type === 'fallback') {
-                // Complete roast data
-                setRoastData(data.data)
-                setShowConfetti(true)
-                setTimeout(() => setShowConfetti(false), 5000)
-              } else if (data.type === 'error') {
-                throw new Error(data.error)
-              }
-            } catch (parseError) {
-              console.error('Error parsing SSE data:', parseError)
-            }
+        if (done) {
+          // Process any remaining buffered data
+          if (buffer.trim()) {
+            buffer.split('\n').forEach(processLine)
           }
+          break
         }
+
+        // Decode chunk and add to buffer (stream: true preserves partial UTF-8)
+        buffer += decoder.decode(value, { stream: true })
+
+        // Split on newlines and process complete lines
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        lines.forEach(processLine)
       }
     } catch (streamError) {
       console.warn('Streaming failed, using regular endpoint:', streamError)
@@ -119,7 +136,8 @@ function App() {
     const websiteUrl = import.meta.env.VITE_WEBSITE_URL || window.location.origin
 
     // Find the most savage roast (highest severity)
-    const savageRoast = roastData.roasts
+    const roasts = Array.isArray(roastData.roasts) ? roastData.roasts : []
+    const savageRoast = roasts
       .filter(r => r.severity >= 4)
       .sort((a, b) => b.severity - a.severity)[0]
 
@@ -588,7 +606,7 @@ Try it: ${websiteUrl}
                   The Roasts 🔥
                 </h3>
 
-                {roastData.roasts.map((roast, index) => (
+                {(Array.isArray(roastData.roasts) ? roastData.roasts : []).map((roast, index) => (
                   <RoastCard key={index} roast={roast} index={index} />
                 ))}
               </div>
@@ -635,7 +653,7 @@ Try it: ${websiteUrl}
                   Ways to Improve (Or Not)
                 </h3>
                 <ul className="space-y-3">
-                  {roastData.suggestions.map((suggestion, index) => (
+                  {(Array.isArray(roastData.suggestions) ? roastData.suggestions : []).map((suggestion, index) => (
                     <motion.li
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
