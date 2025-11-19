@@ -174,8 +174,9 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
   }
 
   try {
-    // Verify repository exists
-    await octokit.repos.get({ owner, repo });
+    // Get repository metadata
+    const repoData = await octokit.repos.get({ owner, repo });
+    const repoInfo = repoData.data;
 
     // Get commits (paginated, up to 1000 commits for analysis)
     const commits = await getAllCommits(octokit, owner, repo);
@@ -184,8 +185,27 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
       throw new Error('No commits found in repository');
     }
 
+    // Get README content
+    let readmeContent = null;
+    let readmeStats = null;
+    try {
+      const readme = await octokit.repos.getReadme({ owner, repo });
+      readmeContent = Buffer.from(readme.data.content, 'base64').toString('utf-8');
+      readmeStats = analyzeReadme(readmeContent);
+    } catch (error) {
+      console.log('No README found or failed to fetch');
+      readmeStats = { exists: false };
+    }
+
+    // Analyze repository metadata
+    const repoMetadata = analyzeRepoMetadata(repoInfo);
+
     // Analyze the commits
     const stats = analyzeCommits(commits, owner, repo);
+
+    // Add README and metadata analysis to stats
+    stats.readmeAnalysis = readmeStats;
+    stats.repoMetadata = repoMetadata;
 
     return stats;
   } catch (error) {
@@ -389,4 +409,102 @@ function analyzeCommits(commits, owner, repo) {
   }
 
   return stats;
+}
+
+/**
+ * Analyze README content for quality and completeness
+ */
+function analyzeReadme(content) {
+  if (!content) {
+    return { exists: false };
+  }
+
+  const analysis = {
+    exists: true,
+    length: content.length,
+    wordCount: content.split(/\s+/).length,
+    hasInstallSection: /##?\s*(install|installation|getting started|setup)/i.test(content),
+    hasUsageSection: /##?\s*(usage|how to use|examples)/i.test(content),
+    hasContributingSection: /##?\s*(contribut|development)/i.test(content),
+    hasLicenseSection: /##?\s*license/i.test(content),
+    hasBadges: /\[!\[.*?\]\(.*?\)\]\(.*?\)/i.test(content),
+    hasCodeBlocks: /```/g.test(content),
+    codeBlockCount: (content.match(/```/g) || []).length / 2,
+    hasLinks: /\[.*?\]\(.*?\)/i.test(content),
+    lineCount: content.split('\n').length,
+    isEmpty: content.trim().length < 50,
+  };
+
+  // Categorize README quality
+  if (analysis.isEmpty) {
+    analysis.quality = 'worthless';
+  } else if (analysis.wordCount < 50) {
+    analysis.quality = 'pathetic';
+  } else if (analysis.wordCount < 200) {
+    analysis.quality = 'lazy';
+  } else if (analysis.wordCount < 500) {
+    analysis.quality = 'minimal';
+  } else {
+    analysis.quality = 'decent';
+  }
+
+  return analysis;
+}
+
+/**
+ * Analyze repository metadata (description, topics, etc.)
+ */
+function analyzeRepoMetadata(repoInfo) {
+  const analysis = {
+    name: repoInfo.name,
+    description: repoInfo.description,
+    hasDescription: !!repoInfo.description && repoInfo.description.length > 0,
+    descriptionLength: repoInfo.description ? repoInfo.description.length : 0,
+    stars: repoInfo.stargazers_count,
+    forks: repoInfo.forks_count,
+    watchers: repoInfo.watchers_count,
+    openIssues: repoInfo.open_issues_count,
+    hasTopics: repoInfo.topics && repoInfo.topics.length > 0,
+    topicsCount: repoInfo.topics ? repoInfo.topics.length : 0,
+    topics: repoInfo.topics || [],
+    hasLicense: !!repoInfo.license,
+    license: repoInfo.license ? repoInfo.license.name : 'None',
+    language: repoInfo.language,
+    isArchived: repoInfo.archived,
+    isTemplate: repoInfo.is_template,
+    hasWiki: repoInfo.has_wiki,
+    hasPages: repoInfo.has_pages,
+    hasIssues: repoInfo.has_issues,
+    hasProjects: repoInfo.has_projects,
+    defaultBranch: repoInfo.default_branch,
+    createdAt: repoInfo.created_at,
+    updatedAt: repoInfo.updated_at,
+    pushedAt: repoInfo.pushed_at,
+  };
+
+  // Categorize repo name quality
+  if (/test|temp|untitled|new|asdf|foo|bar|example/i.test(analysis.name)) {
+    analysis.nameQuality = 'placeholder_garbage';
+  } else if (/\d{5,}/.test(analysis.name)) {
+    analysis.nameQuality = 'random_numbers';
+  } else if (analysis.name.length < 3) {
+    analysis.nameQuality = 'too_short';
+  } else if (analysis.name.length > 50) {
+    analysis.nameQuality = 'essay';
+  } else {
+    analysis.nameQuality = 'acceptable';
+  }
+
+  // Categorize description quality
+  if (!analysis.hasDescription) {
+    analysis.descriptionQuality = 'nonexistent';
+  } else if (analysis.descriptionLength < 20) {
+    analysis.descriptionQuality = 'pathetic';
+  } else if (analysis.descriptionLength < 50) {
+    analysis.descriptionQuality = 'lazy';
+  } else {
+    analysis.descriptionQuality = 'decent';
+  }
+
+  return analysis;
 }

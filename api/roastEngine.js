@@ -180,6 +180,109 @@ export function generateRoast(stats) {
     });
   }
 
+  // README Analysis - SAVAGE MODE
+  if (stats.readmeAnalysis) {
+    if (!stats.readmeAnalysis.exists) {
+      roasts.push({
+        emoji: '📄',
+        title: 'No README? Seriously?',
+        content: `No README file detected. Are you fucking kidding me? This is like opening a restaurant with no menu. How is anyone supposed to use this garbage? "Just read the code" isn't an answer, it's an excuse for being lazy. Writing a README takes 10 minutes. You had time to commit ${stats.totalCommits} times but couldn't be bothered to write ONE README? This is a special kind of selfish.`,
+        severity: 5
+      });
+      suggestions.push('Write a README. Any README. Literally anything is better than nothing.');
+      suggestions.push('If you can\'t explain your project in a README, maybe it shouldn\'t exist.');
+    } else if (stats.readmeAnalysis.quality === 'worthless' || stats.readmeAnalysis.quality === 'pathetic') {
+      roasts.push({
+        emoji: '📝',
+        title: 'README: Technically Exists, Practically Useless',
+        content: `Your README is ${stats.readmeAnalysis.wordCount} words. That's it. That's the whole thing. You have a README the way a desert has water - technically present, completely useless. This isn't documentation, it's a fucking Post-it note. No installation instructions, no usage examples, no nothing. Just... empty space where effort should be. Embarrassing.`,
+        severity: 4
+      });
+      suggestions.push('Your README should explain WHAT, WHY, and HOW. Yours explains nothing.');
+    } else if (stats.readmeAnalysis.quality === 'lazy' || stats.readmeAnalysis.quality === 'minimal') {
+      const missing = [];
+      if (!stats.readmeAnalysis.hasInstallSection) missing.push('installation');
+      if (!stats.readmeAnalysis.hasUsageSection) missing.push('usage examples');
+      if (!stats.readmeAnalysis.hasLicenseSection) missing.push('license');
+
+      roasts.push({
+        emoji: '📋',
+        title: 'Half-Assed Documentation Expert',
+        content: `Your README exists but it's bare minimum bullshit. ${stats.readmeAnalysis.wordCount} words of vague nonsense. Missing: ${missing.join(', ')}. ${stats.readmeAnalysis.codeBlockCount < 1 ? 'Zero code examples. ZERO.' : ''} This is the README equivalent of "it works on my machine." Put some fucking effort in.`,
+        severity: 3
+      });
+      suggestions.push('Add installation instructions. People shouldn\'t have to guess.');
+      suggestions.push('Usage examples aren\'t optional. They\'re mandatory.');
+    }
+  }
+
+  // Repository Metadata Analysis - NO MERCY
+  if (stats.repoMetadata) {
+    if (stats.repoMetadata.nameQuality === 'placeholder_garbage') {
+      roasts.push({
+        emoji: '🗑️',
+        title: 'Repo Name: Placeholder Trash',
+        content: `Your repo is named "${stats.repoMetadata.name}". Really? REALLY?! "test", "temp", "untitled", "asdf" - these aren't names, they're cries for help. This screams "I meant to change this later and forgot." Professional developers name their repos properly. You named yours like you're making a throwaway folder. This is your public face on GitHub. Show some goddamn self-respect.`,
+        severity: 4
+      });
+      suggestions.push('Rename your repo to something that doesn\'t sound like a placeholder.');
+    }
+
+    if (stats.repoMetadata.descriptionQuality === 'nonexistent') {
+      roasts.push({
+        emoji: '🏷️',
+        title: 'Description: Error 404 Not Found',
+        content: `No repository description. Nothing. Not even a single word explaining what this is. You couldn't take 30 seconds to write ONE SENTENCE about your project? This is maximum laziness. GitHub literally gives you a description field. It's right there. And you just... ignored it. Like documentation doesn't matter. Like other people don't exist. Incredible.`,
+        severity: 4
+      });
+      suggestions.push('Add a repo description. One sentence. That\'s all we\'re asking.');
+    } else if (stats.repoMetadata.descriptionQuality === 'pathetic' || stats.repoMetadata.descriptionQuality === 'lazy') {
+      roasts.push({
+        emoji: '💬',
+        title: 'Repo Description: Aggressively Unhelpful',
+        content: `Your repo description is "${stats.repoMetadata.description}". ${stats.repoMetadata.descriptionLength} characters of pure nothing. That's not a description, that's an afterthought. "A project" - WOW THANKS SO HELPFUL. "My code" - NO SHIT. Write a real description that actually tells people what this does. Be specific. Be useful. Be anything other than this.`,
+        severity: 3
+      });
+      suggestions.push('Describe WHAT your project does and WHY it exists.');
+    }
+
+    if (!stats.repoMetadata.hasLicense && stats.totalCommits > 20) {
+      roasts.push({
+        emoji: '⚖️',
+        title: 'No License - Legal Gray Area Specialist',
+        content: `${stats.totalCommits} commits, zero license. You know what that means? Nobody can legally use your code. Congrats, you've created work nobody can touch. "But I want it to be open source!" - then ADD A FUCKING LICENSE. It takes 2 minutes. MIT, Apache, GPL, pick one. Your code is in legal limbo because you couldn't be bothered with basic open source hygiene.`,
+        severity: 3
+      });
+      suggestions.push('Add a license. MIT is fine. Just pick something.');
+    }
+
+    if (!stats.repoMetadata.hasTopics || stats.repoMetadata.topicsCount === 0) {
+      roasts.push({
+        emoji: '🏷️',
+        title: 'Zero Topics - SEO Failure',
+        content: `No repository topics. None. GitHub lets you add topics so people can find your repo. You said "nah." This repo is invisible. Undiscoverable. You're basically coding in a dark room with the door locked. Nobody will ever find this. But hey, at least you tried. Wait, no you didn't.`,
+        severity: 2
+      });
+      suggestions.push('Add topics/tags. Make your repo discoverable.');
+    }
+
+    if (stats.repoMetadata.stars === 0 && stats.totalCommits > 50) {
+      achievements.push({
+        emoji: '⭐',
+        title: 'Zero Stars - Universally Ignored',
+        description: `${stats.totalCommits} commits, 0 stars. Nobody cares. Not even your mom starred this.`
+      });
+    }
+
+    if (stats.repoMetadata.isArchived) {
+      achievements.push({
+        emoji: '⚰️',
+        title: 'Repository: Officially Dead',
+        description: 'This repo is archived. It\'s a corpse. A monument to abandoned dreams.'
+      });
+    }
+  }
+
   // Add BRUTAL suggestions
   if (suggestions.length === 0) {
     suggestions.push('Honestly? Just start over. This is beyond saving.');
@@ -189,6 +292,7 @@ export function generateRoast(stats) {
   suggestions.push('Git history is permanent. Yours is permanently shameful.');
   suggestions.push('Every commit is a chance to be better. You\'re wasting those chances.');
   suggestions.push('Read "Clean Code" and actually apply it, not just tweet about it.');
+  suggestions.push('Documentation isn\'t optional. Write it.');
 
   // Generate SAVAGE grade descriptions
   const gradeDescriptions = {
@@ -237,6 +341,22 @@ function calculateGrade(stats) {
 
   // Deduct for low commit count (might be new or lazy)
   if (stats.totalCommits < 10) score -= 10;
+
+  // Deduct for documentation failures
+  if (stats.readmeAnalysis) {
+    if (!stats.readmeAnalysis.exists) score -= 20; // No README is a sin
+    else if (stats.readmeAnalysis.quality === 'worthless' || stats.readmeAnalysis.quality === 'pathetic') score -= 15;
+    else if (stats.readmeAnalysis.quality === 'lazy' || stats.readmeAnalysis.quality === 'minimal') score -= 10;
+  }
+
+  // Deduct for repo metadata failures
+  if (stats.repoMetadata) {
+    if (stats.repoMetadata.nameQuality === 'placeholder_garbage') score -= 10;
+    if (stats.repoMetadata.descriptionQuality === 'nonexistent') score -= 10;
+    else if (stats.repoMetadata.descriptionQuality === 'pathetic' || stats.repoMetadata.descriptionQuality === 'lazy') score -= 5;
+    if (!stats.repoMetadata.hasLicense && stats.totalCommits > 20) score -= 5;
+    if (!stats.repoMetadata.hasTopics) score -= 3;
+  }
 
   // Bonus for reasonable commit count
   if (stats.totalCommits > 50 && stats.totalCommits < 5000) score += 5;
