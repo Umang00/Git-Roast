@@ -4,13 +4,13 @@
   "description": "AI-powered Git history roaster - Get brutally honest feedback about your coding habits! 🔥",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "vercel dev",
+    "dev:legacy": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
-    "dev:vercel": "vercel dev",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "install:all": "npm install && cd frontend && npm install",
     "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start"
+    "start": "vercel dev"
   },
   "keywords": ["git", "roast", "ai", "developer", "humor", "viral"],
   "author": "",

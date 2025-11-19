@@ -98,8 +98,8 @@ Get graded on your git habits:
 
 ### Prerequisites
 - Node.js 18+ installed
-- Git installed
-- A git repository to analyze (the dirtier the better 😈)
+- GitHub account (for optional higher rate limits)
+- Vercel CLI installed: `npm i -g vercel`
 
 ### Installation
 
@@ -108,26 +108,36 @@ Get graded on your git habits:
 git clone <your-repo-url>
 cd gitroast
 
-# Install dependencies for all packages
+# Install dependencies
 npm run install:all
 
-# Start the development servers (frontend + backend)
+# Start the development server (Vercel-powered)
 npm run dev
 ```
 
-The app will open at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:3001
+The app will automatically open at **http://localhost:3000** with serverless API functions running seamlessly!
+
+### Optional: GitHub Token for Higher Rate Limits
+
+```bash
+# Create .env file in root directory
+echo "GITHUB_TOKEN=your_github_token_here" > .env
+
+# Get a token at: https://github.com/settings/tokens
+# No special permissions needed for public repos
+# Increases rate limit from 60 to 5000 requests/hour
+```
 
 ### Quick Test
 
-1. Open http://localhost:3000
+1. Run `npm run dev` and open http://localhost:3000
 2. Enter a GitHub repository URL:
    - Try: `facebook/react`
    - Or: `https://github.com/torvalds/linux`
    - Or: `microsoft/vscode`
+   - Or just: `torvalds/linux` (shorthand works!)
 3. Click "Roast My Code!" 🔥
-4. Watch as the AI destroys someone's coding habits
+4. Watch as the AI destroys coding habits
 5. Share the results and go viral!
 
 **Popular Repos to Roast:**
@@ -136,6 +146,16 @@ The app will open at:
 - `tensorflow/tensorflow` - Google's ML framework
 - `microsoft/vscode` - VS Code editor
 - `YOUR-USERNAME/YOUR-REPO` - Your own projects!
+
+### Legacy Mode (Separate Frontend/Backend)
+
+If you need to run the old split architecture:
+
+```bash
+npm run dev:legacy
+```
+
+This runs frontend on :3000 and backend on :3001 separately.
 
 ---
 
@@ -155,18 +175,16 @@ gitroast/
 │   ├── tailwind.config.js
 │   └── postcss.config.js
 │
-├── api/                        # Vercel Serverless Functions (NEW! 🎉)
+├── api/                        # Vercel Serverless Functions ⚡ (ACTIVE)
 │   ├── roast.js               # Main roast API endpoint
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
 │   └── roastEngine.js         # AI roasting engine 🔥
 │
-├── backend/                    # Traditional Node.js backend (legacy)
-│   ├── server.js              # Express server
-│   ├── gitAnalyzer.js         # Local git analysis
-│   ├── roastEngine.js         # Roasting engine
-│   └── package.json
+├── backend/                    # Legacy Express backend (optional)
+│   └── ...                    # Only needed for local git analysis
 │
+├── .env                        # Environment variables (create this!)
 ├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
 ├── DEPLOYMENT.md              # Multi-platform deployment guide
 ├── vercel.json                # Vercel configuration
@@ -180,20 +198,19 @@ gitroast/
 
 ### Analyze a Repository
 
-**Option 1: Local Repository**
+**GitHub Repositories (Recommended):**
 ```bash
-# In the app, enter:
-/path/to/your/repository
-
-# Or use current directory:
-.
+# Any of these formats work:
+https://github.com/facebook/react
+facebook/react
+git@github.com:facebook/react.git
 ```
 
-**Option 2: Any Git Repo on Your Machine**
-```bash
-# Enter the full path:
-/home/user/projects/my-awesome-project
-```
+**Optional GitHub Token:**
+- Without token: 60 requests/hour
+- With token: 5,000 requests/hour
+- Add to `.env`: `GITHUB_TOKEN=your_token_here`
+- Get token at: https://github.com/settings/tokens (no permissions needed for public repos)
 
 ### Share Your Results
 
@@ -227,7 +244,7 @@ gitroast/
 
 ### Add Your Own Roasts
 
-Edit `backend/roastEngine.js` to add custom roasting logic:
+Edit `api/roastEngine.js` to add custom roasting logic:
 
 ```javascript
 if (stats.yourCustomPattern) {
