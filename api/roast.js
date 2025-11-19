@@ -56,6 +56,7 @@ export default async function handler(req, res) {
 
     // Try AI-powered roasts first, fall back to templates if it fails
     let roastData;
+    let usedFallback = false;
     try {
       console.log('Attempting AI-powered roast generation...');
       roastData = await generateAIRoast(gitStats);
@@ -63,6 +64,15 @@ export default async function handler(req, res) {
     } catch (aiError) {
       console.warn('AI roast generation failed, falling back to templates:', aiError.message);
       roastData = generateRoast(gitStats);
+      usedFallback = true;
+
+      // Add fun fallback message as a roast
+      roastData.roasts.unshift({
+        emoji: '🤖',
+        title: 'LLM Status Update',
+        content: "Our LLM is out sick today, but who needs it? I've learned enough from roasting thousands of repos that I can handle this without AI. Your code is still getting destroyed, just the old-fashioned way.",
+        severity: 1
+      });
     }
 
     // Add repository/profile info and stats to response

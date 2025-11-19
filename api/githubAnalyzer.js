@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/rest';
+import { withGithubRetry } from './retryUtils.js';
 
 /**
  * Analyzes a GitHub user's entire profile (all public repositories)
@@ -12,7 +13,9 @@ export async function analyzeGitHubProfile(username, githubToken = null) {
 
   try {
     // Verify user exists
-    const userResponse = await octokit.users.getByUsername({ username });
+    const userResponse = await withGithubRetry(() =>
+      octokit.users.getByUsername({ username })
+    );
     const userData = userResponse.data;
 
     // Get all public repositories
@@ -101,13 +104,15 @@ async function getAllUserRepos(octokit, username) {
 
   while (true) {
     try {
-      const response = await octokit.repos.listForUser({
-        username,
-        per_page: perPage,
-        page,
-        sort: 'updated',
-        direction: 'desc',
-      });
+      const response = await withGithubRetry(() =>
+        octokit.repos.listForUser({
+          username,
+          per_page: perPage,
+          page,
+          sort: 'updated',
+          direction: 'desc',
+        })
+      );
 
       if (response.data.length === 0) break;
 
@@ -175,7 +180,9 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
 
   try {
     // Get repository metadata
-    const repoData = await octokit.repos.get({ owner, repo });
+    const repoData = await withGithubRetry(() =>
+      octokit.repos.get({ owner, repo })
+    );
     const repoInfo = repoData.data;
 
     // Get commits (paginated, up to 1000 commits for analysis)
@@ -189,7 +196,9 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
     let readmeContent = null;
     let readmeStats = null;
     try {
-      const readme = await octokit.repos.getReadme({ owner, repo });
+      const readme = await withGithubRetry(() =>
+        octokit.repos.getReadme({ owner, repo })
+      );
       readmeContent = Buffer.from(readme.data.content, 'base64').toString('utf-8');
       readmeStats = analyzeReadme(readmeContent);
     } catch (error) {
@@ -262,12 +271,14 @@ async function getAllCommits(octokit, owner, repo, maxCommits = 1000) {
 
   while (commits.length < maxCommits) {
     try {
-      const response = await octokit.repos.listCommits({
-        owner,
-        repo,
-        per_page: perPage,
-        page,
-      });
+      const response = await withGithubRetry(() =>
+        octokit.repos.listCommits({
+          owner,
+          repo,
+          per_page: perPage,
+          page,
+        })
+      );
 
       if (response.data.length === 0) break;
 

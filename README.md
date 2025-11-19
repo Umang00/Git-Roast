@@ -123,7 +123,7 @@ npm run install:all
 npm run dev
 ```
 
-The app opens at **http://localhost:3000**. API functions work automatically when deployed to Vercel!
+The app opens at **`http://localhost:3000`**. API functions work automatically when deployed to Vercel!
 
 ### Required: Gemini API Key for AI-Powered Roasts
 
@@ -148,38 +148,33 @@ echo "GITHUB_TOKEN=your_github_token_here" >> .env
 
 ### Development Workflows
 
-**Option 1: Frontend Only (Recommended for UI work)**
+### Option 1: Full Stack with Vercel Dev (Recommended)
 ```bash
 npm run dev
-# Runs Vite on :3000
+# Runs vercel dev - Full stack with API routes
+# Frontend + Serverless functions locally
+# Opens at http://localhost:3000
+```
+
+### Option 2: Frontend Only (UI development)
+```bash
+npm run dev:frontend
+# Runs Vite only on :3000
+# API routes won't work locally
 # Deploy to Vercel preview to test API integration
-```
-
-**Option 2: Full Local Stack (Test API functions locally)**
-```bash
-npm run dev:vercel
-# Requires: npm i -g vercel
-# Runs frontend + serverless functions locally
-```
-
-**Option 3: Frontend + Backend API (Alternative)**
-```bash
-npm run dev:api
-# Runs Vite on :3000 + Express on :3001
-# Uses the backend API instead of serverless functions
 ```
 
 ### Quick Test
 
 1. Run `npm run dev`
-2. Open http://localhost:3000
+2. Open `http://localhost:3000`
 3. Enter a GitHub repository URL:
    - Try: `facebook/react`
    - Or: `https://github.com/torvalds/linux`
    - Or just: `torvalds/linux` (shorthand works!)
 4. Click "Roast My Code!" 🔥
 
-**Note**: API calls won't work in pure frontend mode - deploy to Vercel preview or use `npm run dev:vercel` / `npm run dev:api` to test API integration locally.
+**Note**: API calls won't work with `npm run dev:frontend` - use `npm run dev` (vercel dev) to test API integration locally.
 
 **Popular Repos to Roast:**
 - `torvalds/linux` - The Linux kernel
@@ -206,16 +201,14 @@ gitroast/
 │   ├── tailwind.config.js
 │   └── postcss.config.js
 │
-├── api/                        # Vercel Serverless Functions ⚡ (ACTIVE)
-│   ├── roast.js               # Main roast API endpoint
+├── api/                        # Vercel Serverless Functions ⚡
+│   ├── roast.js               # Main roast API endpoint (AI + fallback)
 │   ├── roast-stream.js        # Streaming roast API with SSE
 │   ├── aiRoastGenerator.js    # Google Gemini AI integration 🤖
+│   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
 │   └── roastEngine.js         # Template-based roasting (fallback) 🔥
-│
-├── backend/                    # Legacy Express backend (optional)
-│   └── ...                    # Only needed for local git analysis
 │
 ├── .env                        # Environment variables (create this!)
 ├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
@@ -243,7 +236,7 @@ git@github.com:facebook/react.git
 - Without token: 60 requests/hour
 - With token: 5,000 requests/hour
 - Add to `.env`: `GITHUB_TOKEN=your_token_here`
-- Get token at: https://github.com/settings/tokens (no permissions needed for public repos)
+- Get token at: `https://github.com/settings/tokens` (no permissions needed for public repos)
 
 ### Share Your Results
 
@@ -269,13 +262,12 @@ git@github.com:facebook/react.git
 - **Axios** - HTTP requests
 
 ### Backend & AI
-- **Node.js** - Runtime
+- **Node.js (ESM)** - Runtime with module support
 - **Vercel Serverless Functions** - Scalable API endpoints
-- **Google Gemini AI (gemini-1.5-flash-latest)** - AI-powered roast generation
+- **Google Gemini AI (gemini-2.5-flash)** - AI-powered roast generation
+- **Bottleneck** - Rate limiting & retry logic with exponential backoff
 - **GitHub REST API (@octokit/rest)** - Repository data fetching
 - **Server-Sent Events (SSE)** - Real-time streaming responses
-- **Express** - Web framework (legacy backend)
-- **simple-git** - Git operations (legacy)
 - **CORS** - Cross-origin support
 
 ---
@@ -325,7 +317,7 @@ AI-powered streaming roast with real-time response
 ```
 
 **Response:** Server-Sent Events (SSE) stream
-```
+```text
 data: {"type":"stats","data":{...}}
 data: {"type":"chunk","text":"You"}
 data: {"type":"chunk","text":" really"}

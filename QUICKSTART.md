@@ -35,7 +35,7 @@ npm run dev
 - **Serverless**: Auto-scaling, no backend management
 - **Free**: Gemini + Vercel free tiers
 
-### ❌ Before (GitRoast 2.0 - Template-Based)
+### ❌ Before (GitRoast 3.0 - Template-Based)
 - Template roasts only (generic)
 - No streaming
 - Basic share button
@@ -72,15 +72,17 @@ Streaming Response → Frontend displays AI roasts in real-time 🔥
 ### Start Development
 ```bash
 npm run dev
+# Runs vercel dev
 # Opens http://localhost:3000
 # API routes automatically work at /api/*
 ```
 
 ### What's Running?
-- **Vercel Dev**: Simulates Vercel's serverless environment locally
+- **Vercel Dev**: Full stack - Simulates Vercel's serverless environment locally
 - **Frontend**: Vite dev server with hot reload
-- **API Functions**: Automatically loaded from `/api/` folder
+- **API Functions**: Automatically loaded from `/api/` folder with retry logic
 - **Environment**: Reads `.env` file automatically
+- **LLM**: Google Gemini AI (gemini-2.5-flash) with configurable parameters
 
 ### Test It
 1. Enter: `facebook/react`
@@ -94,15 +96,16 @@ npm run dev
 ```
 gitroast/
 ├── frontend/src/App.jsx          # React app (edit UI here)
-├── api/roast.js                  # Main API endpoint
+├── api/roast.js                  # Main API endpoint (AI + fallback)
+├── api/roast-stream.js           # Streaming API with SSE
+├── api/aiRoastGenerator.js       # Gemini AI integration
+├── api/retryUtils.js             # Retry logic with bottleneck
 ├── api/githubAnalyzer.js         # GitHub integration
-├── api/roastEngine.js            # Roast generation logic
-├── .env                          # Your GitHub token (create this!)
+├── api/roastEngine.js            # Template roasts (fallback)
+├── .env                          # API keys (create this!)
 ├── vercel.json                   # Deployment config
-└── package.json                  # Scripts and dependencies
+└── package.json                  # Scripts and dependencies (type: module)
 ```
-
-**Note**: The `/backend/` folder is legacy. You don't need it anymore unless you want to analyze local git repos!
 
 ---
 
@@ -137,8 +140,8 @@ GITHUB_TOKEN=ghp_your_token_here
 ## Common Issues & Solutions
 
 ### Issue 1: "Repository path is required"
-**Cause**: You're running the old backend instead of Vercel dev
-**Solution**: Use `npm run dev` (not `npm run dev:legacy`)
+**Cause**: Using frontend-only mode
+**Solution**: Use `npm run dev` (vercel dev) instead of `npm run dev:frontend`
 
 ### Issue 2: Port 3000 already in use
 **Solution**:
@@ -165,10 +168,11 @@ npm install -g vercel
 
 | Command | What It Does |
 |---------|--------------|
-| `npm run dev` | **Start Vercel dev** (recommended) |
-| `npm run dev:legacy` | Start old split architecture |
+| `npm run dev` | **Start Vercel dev** (full stack - recommended) |
+| `npm run dev:frontend` | Start frontend only (Vite) |
 | `npm run install:all` | Install all dependencies |
 | `npm run build` | Build for production |
+| `npm run lint` | Run ESLint |
 | `npm start` | Same as `npm run dev` |
 
 ---

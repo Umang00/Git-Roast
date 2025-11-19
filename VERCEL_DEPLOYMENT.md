@@ -43,13 +43,13 @@
 2. **Configure Environment Variables:**
 
    **REQUIRED for AI Roasts:**
-   - Add `GEMINI_API_KEY` - Get FREE key at: https://aistudio.google.com/app/apikey
+   - Add `GEMINI_API_KEY` - Get FREE key at: `https://aistudio.google.com/app/apikey`
    - Click "Create API Key" → Copy the key
    - Add to Vercel environment variables
 
    **OPTIONAL for Higher Rate Limits:**
    - Add `GITHUB_TOKEN` for 5000 req/hr (vs 60 without)
-   - Create token at: https://github.com/settings/tokens
+   - Create token at: `https://github.com/settings/tokens`
    - No special permissions needed for public repos
 
 3. **Deploy!**
@@ -98,7 +98,7 @@ vercel --prod
 
 ---
 
-## 🎮 How to Use GitRoast 2.0
+## 🎮 How to Use GitRoast 3.0
 
 ### Analyze ANY GitHub Repository
 
@@ -142,7 +142,7 @@ microsoft/vscode
 **How to Add:**
 
 1. **Get FREE Gemini API Key**
-   - Go to: https://aistudio.google.com/app/apikey
+   - Go to: `https://aistudio.google.com/app/apikey`
    - Sign in with Google account
    - Click "Create API Key"
    - Copy the key
@@ -224,7 +224,7 @@ Health check
 {
   "status": "ok",
   "message": "GitRoast API is running! 🔥",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "mode": "serverless"
 }
 ```
@@ -284,7 +284,7 @@ npm run dev
 
 ---
 
-## 📈 Going Viral with GitRoast 2.0
+## 📈 Going Viral with GitRoast 3.0
 
 ### Viral Opportunities
 
@@ -453,7 +453,7 @@ Ideas for GitRoast 4.0:
 
 ## 🎊 You're Ready!
 
-**Deploy GitRoast 2.0 in ONE CLICK and go VIRAL! 🔥**
+**Deploy GitRoast 3.0 in ONE CLICK and go VIRAL! 🔥**
 
 Questions? Check the troubleshooting section or create an issue!
 

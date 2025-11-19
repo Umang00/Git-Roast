@@ -17,6 +17,7 @@ function App() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [linkedInCopied, setLinkedInCopied] = useState(false)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -98,37 +99,113 @@ function App() {
     }
   }
 
+  // Generate viral social message using the most savage roast
+  const generateViralMessage = () => {
+    if (!roastData) return ''
+
+    const isProfile = roastData.analysisType === 'profile'
+    const target = roastData.repository
+      ? (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName)
+      : 'my code'
+
+    // Get website URL from env or use current location
+    const websiteUrl = import.meta.env.VITE_WEBSITE_URL || window.location.origin
+
+    // Find the most savage roast (highest severity)
+    const savageRoast = roastData.roasts
+      .filter(r => r.severity >= 4)
+      .sort((a, b) => b.severity - a.severity)[0]
+
+    if (savageRoast) {
+      // Use savage roast as hook
+      const roastSnippet = savageRoast.content.substring(0, 120)
+      return `🔥 Holy shit, I just got DESTROYED by AI!
+
+${target} - Grade: ${roastData.grade}
+Roast: "${roastSnippet}..."
+
+I can't believe this is real 💀
+
+Get roasted: ${websiteUrl}
+#GitRoast`
+    }
+
+    // Fallback if no savage roasts
+    return `🔥 An AI just brutally roasted ${target}!
+
+Grade: ${roastData.grade}
+
+This is savage AF 💀
+
+Try it: ${websiteUrl}
+#GitRoast`
+  }
+
   const shareToTwitter = () => {
-    const isProfile = roastData?.analysisType === 'profile'
-    const target = roastData?.repository ?
-      (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName) : 'my code'
-    const text = `I just got ROASTED by GitRoast! 🔥\n\n${target} - Grade: ${roastData?.grade}\n\nGet your code brutally roasted:`
+    const text = generateViralMessage()
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
     window.open(url, '_blank')
   }
 
-  const shareToLinkedIn = () => {
-    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`
-    window.open(url, '_blank')
-  }
+  const shareToLinkedIn = async () => {
+    // LinkedIn doesn't support pre-filled text, so copy to clipboard + show toast
+    const text = generateViralMessage()
 
-  const copyToClipboard = () => {
-    const isProfile = roastData?.analysisType === 'profile'
-    const target = roastData?.repository ?
-      (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName) : 'my code'
-    const text = `I just got ROASTED by GitRoast! 🔥\n\n${target} - Developer Grade: ${roastData?.grade}\n\nGet your code brutally roasted at GitRoast!`
+    try {
+      await navigator.clipboard.writeText(text)
+      setLinkedInCopied(true)
 
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => setCopied(false), 2000)
-      return () => clearTimeout(timer)
+      // Open LinkedIn post page
+      setTimeout(() => {
+        window.open('https://www.linkedin.com/feed/', '_blank')
+      }, 500)
+    } catch (err) {
+      console.error('Copy failed:', err)
+      // Fallback: just open LinkedIn
+      window.open('https://www.linkedin.com/feed/', '_blank')
     }
+  }
+
+  const copyToClipboard = async () => {
+    const text = generateViralMessage()
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+    } catch (err) {
+      console.error('Copy failed:', err)
+
+      // Fallback for non-HTTPS or denied permissions
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        setCopied(true)
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr)
+        setError('Failed to copy to clipboard')
+      }
+    }
+  }
+
+  // Cleanup timer for copied state
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(timer)
   }, [copied])
+
+  // Cleanup timer for LinkedIn copied state
+  useEffect(() => {
+    if (!linkedInCopied) return
+    const timer = setTimeout(() => setLinkedInCopied(false), 3000)
+    return () => clearTimeout(timer)
+  }, [linkedInCopied])
 
   const getGradeColor = (grade) => {
     const colors = {
@@ -210,7 +287,7 @@ function App() {
             Get Your Code Brutally Roasted by AI 🔥
           </p>
           <p className="text-lg text-gray-400">
-            Powered by Google Gemini AI - Savage, Streaming, Shareable
+            The Most Savage GitHub Roaster - AI-Powered & Brutally Honest
           </p>
         </motion.div>
 
@@ -393,6 +470,22 @@ function App() {
                     )}
                   </motion.button>
                 </div>
+
+                {/* LinkedIn Toast Notification */}
+                <AnimatePresence>
+                  {linkedInCopied && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-3 bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-center"
+                    >
+                      <p className="text-sm text-blue-300">
+                        ✅ Text copied! Paste it into LinkedIn 📝
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
               {/* Profile Info (if analyzing a profile) */}
@@ -545,7 +638,7 @@ function App() {
           transition={{ delay: 1 }}
           className="text-center mt-16 text-gray-500"
         >
-          <p className="mb-2">Powered by Google Gemini AI 🤖 • Made with 🔥 and no mercy</p>
+          <p className="mb-2">Made with 🔥 and absolutely no mercy</p>
           <p className="text-sm">Share your savage roast and go viral! 🚀</p>
         </motion.div>
       </div>

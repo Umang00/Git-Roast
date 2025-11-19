@@ -1,12 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { withGeminiRetry } from './retryUtils.js';
 
 /**
  * AI-Powered Roast Generator using Google Gemini
  * Generates brutal, personalized roasts based on comprehensive GitHub analysis
+ * Includes automatic retry logic with exponential backoff for reliability
  */
 
 /**
- * Initialize Gemini AI with API key from environment
+ * Initialize Gemini AI with API key and configuration from environment
+ * All parameters are configurable via environment variables for flexibility
  */
 function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -15,14 +18,23 @@ function getGeminiClient() {
     throw new Error('GEMINI_API_KEY not found in environment variables');
   }
 
+  // Use LLM_* prefix for model configuration (flexible for future model changes)
+  const model = process.env.LLM_MODEL || 'gemini-2.5-flash';
+  const temperature = parseFloat(process.env.LLM_TEMPERATURE || '1.2');
+  const topP = parseFloat(process.env.LLM_TOP_P || '0.95');
+  const topK = parseInt(process.env.LLM_TOP_K || '64', 10);
+  const maxOutputTokens = parseInt(process.env.LLM_MAX_OUTPUT_TOKENS || '8192', 10);
+
+  console.log(`Initializing LLM: ${model} (temp: ${temperature}, topP: ${topP}, topK: ${topK})`);
+
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash-latest',
+    model,
     generationConfig: {
-      temperature: 1.2, // High creativity for savage roasts
-      topP: 0.95,
-      topK: 64,
-      maxOutputTokens: 8192,
+      temperature,
+      topP,
+      topK,
+      maxOutputTokens,
     },
   });
 }
@@ -162,8 +174,13 @@ export async function generateAIRoast(stats) {
     const model = getGeminiClient();
     const prompt = buildRoastPrompt(stats);
 
-    console.log('Generating AI roast with Gemini...');
-    const result = await model.generateContent(prompt);
+    console.log('Generating AI roast with Gemini (with retry logic)...');
+
+    // Wrap AI call in retry logic
+    const result = await withGeminiRetry(async () => {
+      return await model.generateContent(prompt);
+    });
+
     const response = result.response;
     const text = response.text();
 
@@ -198,8 +215,12 @@ export async function generateStreamingAIRoast(stats, onChunk) {
     const model = getGeminiClient();
     const prompt = buildRoastPrompt(stats);
 
-    console.log('Generating streaming AI roast with Gemini...');
-    const result = await model.generateContentStream(prompt);
+    console.log('Generating streaming AI roast with Gemini (with retry logic)...');
+
+    // Wrap AI call in retry logic
+    const result = await withGeminiRetry(async () => {
+      return await model.generateContentStream(prompt);
+    });
 
     let fullText = '';
 

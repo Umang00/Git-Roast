@@ -93,6 +93,14 @@ export default async function handler(req, res) {
       roastData.repository = gitStats.repositoryInfo;
       roastData.analysisType = inputType.type;
 
+      // Add fun fallback message as a roast
+      roastData.roasts.unshift({
+        emoji: '🤖',
+        title: 'LLM Status Update',
+        content: "Our LLM is out sick today, but who needs it? I've learned enough from roasting thousands of repos that I can handle this without AI. Your code is still getting destroyed, just the old-fashioned way.",
+        severity: 1
+      });
+
       res.write(`data: ${JSON.stringify({ type: 'fallback', data: roastData })}\n\n`);
       res.end();
     }
