@@ -99,7 +99,6 @@ Get graded on your git habits:
 ### Prerequisites
 - Node.js 18+ installed
 - GitHub account (for optional higher rate limits)
-- Vercel CLI installed: `npm i -g vercel`
 
 ### Installation
 
@@ -111,11 +110,11 @@ cd gitroast
 # Install dependencies
 npm run install:all
 
-# Start the development server (Vercel-powered)
+# Start development
 npm run dev
 ```
 
-The app will automatically open at **http://localhost:3000** with serverless API functions running seamlessly!
+The app opens at **http://localhost:3000**. API functions work automatically when deployed to Vercel!
 
 ### Optional: GitHub Token for Higher Rate Limits
 
@@ -128,17 +127,40 @@ echo "GITHUB_TOKEN=your_github_token_here" > .env
 # Increases rate limit from 60 to 5000 requests/hour
 ```
 
+### Development Workflows
+
+**Option 1: Frontend Only (Recommended for UI work)**
+```bash
+npm run dev
+# Runs Vite on :3000
+# Deploy to Vercel preview to test API integration
+```
+
+**Option 2: Full Local Stack (Test API functions locally)**
+```bash
+npm run dev:vercel
+# Requires: npm i -g vercel
+# Runs frontend + serverless functions locally
+```
+
+**Option 3: Frontend + Backend API (Alternative)**
+```bash
+npm run dev:api
+# Runs Vite on :3000 + Express on :3001
+# Uses the backend API instead of serverless functions
+```
+
 ### Quick Test
 
-1. Run `npm run dev` and open http://localhost:3000
-2. Enter a GitHub repository URL:
+1. Run `npm run dev`
+2. Open http://localhost:3000
+3. Enter a GitHub repository URL:
    - Try: `facebook/react`
    - Or: `https://github.com/torvalds/linux`
-   - Or: `microsoft/vscode`
    - Or just: `torvalds/linux` (shorthand works!)
-3. Click "Roast My Code!" 🔥
-4. Watch as the AI destroys coding habits
-5. Share the results and go viral!
+4. Click "Roast My Code!" 🔥
+
+**Note**: API calls won't work in pure frontend mode - deploy to Vercel preview or use `npm run dev:vercel` / `npm run dev:api` to test API integration locally.
 
 **Popular Repos to Roast:**
 - `torvalds/linux` - The Linux kernel
@@ -146,16 +168,6 @@ echo "GITHUB_TOKEN=your_github_token_here" > .env
 - `tensorflow/tensorflow` - Google's ML framework
 - `microsoft/vscode` - VS Code editor
 - `YOUR-USERNAME/YOUR-REPO` - Your own projects!
-
-### Legacy Mode (Separate Frontend/Backend)
-
-If you need to run the old split architecture:
-
-```bash
-npm run dev:legacy
-```
-
-This runs frontend on :3000 and backend on :3001 separately.
 
 ---
 

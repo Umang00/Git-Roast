@@ -4,8 +4,9 @@
   "description": "AI-powered Git history roaster - Get brutally honest feedback about your coding habits! 🔥",
   "private": true,
   "scripts": {
-    "dev": "vercel dev",
-    "dev:legacy": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "npm run dev:frontend",
+    "dev:vercel": "vercel dev",
+    "dev:api": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "install:all": "npm install && cd frontend && npm install",
