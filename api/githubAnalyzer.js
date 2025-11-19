@@ -1,6 +1,161 @@
 import { Octokit } from '@octokit/rest';
 
 /**
+ * Analyzes a GitHub user's entire profile (all public repositories)
+ * @param {string} username - GitHub username
+ * @param {string} githubToken - Optional GitHub personal access token for higher rate limits
+ */
+export async function analyzeGitHubProfile(username, githubToken = null) {
+  const octokit = new Octokit({
+    auth: githubToken || process.env.GITHUB_TOKEN,
+  });
+
+  try {
+    // Verify user exists
+    const userResponse = await octokit.users.getByUsername({ username });
+    const userData = userResponse.data;
+
+    // Get all public repositories
+    const repos = await getAllUserRepos(octokit, username);
+
+    if (repos.length === 0) {
+      throw new Error('No public repositories found for this user');
+    }
+
+    console.log(`Found ${repos.length} repositories for ${username}`);
+
+    // Collect commits from all repos (limit to avoid rate limits)
+    const allCommits = [];
+    const repoStats = [];
+    const maxReposToAnalyze = 20; // Limit to avoid rate limits
+    const reposToAnalyze = repos.slice(0, maxReposToAnalyze);
+
+    for (const repo of reposToAnalyze) {
+      try {
+        console.log(`Analyzing repo: ${repo.name}...`);
+        const commits = await getAllCommits(octokit, username, repo.name, 100); // Limit commits per repo
+
+        if (commits.length > 0) {
+          allCommits.push(...commits.map(c => ({
+            ...c,
+            repoName: repo.name,
+          })));
+
+          repoStats.push({
+            name: repo.name,
+            commits: commits.length,
+            stars: repo.stargazers_count,
+            language: repo.language,
+          });
+        }
+      } catch (error) {
+        console.log(`Skipping repo ${repo.name}: ${error.message}`);
+        // Skip repos we can't access
+      }
+    }
+
+    if (allCommits.length === 0) {
+      throw new Error('No commits found across all repositories');
+    }
+
+    console.log(`Total commits collected: ${allCommits.length}`);
+
+    // Analyze combined commits
+    const stats = analyzeCommits(allCommits, username, 'profile');
+
+    // Add profile-specific metadata
+    stats.repositoryInfo = {
+      username,
+      type: 'profile',
+      fullName: username,
+      totalRepos: repos.length,
+      analyzedRepos: reposToAnalyze.length,
+      publicRepos: userData.public_repos,
+      followers: userData.followers,
+      following: userData.following,
+      profileUrl: userData.html_url,
+      avatarUrl: userData.avatar_url,
+      bio: userData.bio,
+      topRepos: repoStats.sort((a, b) => b.commits - a.commits).slice(0, 5),
+    };
+
+    return stats;
+  } catch (error) {
+    if (error.status === 404) {
+      throw new Error('User not found. Make sure the username is correct.');
+    }
+    if (error.status === 403) {
+      throw new Error('Rate limit exceeded. Please try again later or use a GitHub token.');
+    }
+    throw new Error(`Failed to analyze GitHub profile: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch all public repositories for a user
+ */
+async function getAllUserRepos(octokit, username) {
+  const repos = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    try {
+      const response = await octokit.repos.listForUser({
+        username,
+        per_page: perPage,
+        page,
+        sort: 'updated',
+        direction: 'desc',
+      });
+
+      if (response.data.length === 0) break;
+
+      // Filter out forks (optional - analyze own repos only)
+      const ownRepos = response.data.filter(repo => !repo.fork);
+      repos.push(...ownRepos);
+
+      if (response.data.length < perPage) break;
+      page++;
+    } catch (error) {
+      console.error(`Error fetching repos page ${page}:`, error.message);
+      break;
+    }
+  }
+
+  return repos;
+}
+
+/**
+ * Detect if input is a username or repository URL
+ * @param {string} input - User input (username, URL, or owner/repo)
+ * @returns {Object} { type: 'profile' | 'repo', username?, owner?, repo? }
+ */
+export function detectInputType(input) {
+  // Remove whitespace and .git suffix
+  input = input.trim().replace(/\.git$/, '');
+
+  // Check if it contains a slash (repo format)
+  if (input.includes('/')) {
+    const { owner, repo } = parseGitHubUrl(input);
+    if (owner && repo) {
+      return { type: 'repo', owner, repo };
+    }
+  }
+
+  // Check if it's a URL
+  if (input.includes('github.com')) {
+    const { owner, repo } = parseGitHubUrl(input);
+    if (owner && repo) {
+      return { type: 'repo', owner, repo };
+    }
+  }
+
+  // Otherwise treat as username
+  return { type: 'profile', username: input };
+}
+
+/**
  * Analyzes a GitHub repository using the GitHub API
  * @param {string} repoUrl - GitHub repository URL or "owner/repo" format
  * @param {string} githubToken - Optional GitHub personal access token for higher rate limits

@@ -1,9 +1,9 @@
-import { analyzeGitHubRepo } from './githubAnalyzer.js';
+import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
 import { generateRoast } from './roastEngine.js';
 
 /**
  * Vercel Serverless Function for GitRoast
- * Analyzes GitHub repositories and generates roasts
+ * Analyzes GitHub repositories or user profiles and generates roasts
  */
 export default async function handler(req, res) {
   // Enable CORS
@@ -31,27 +31,37 @@ export default async function handler(req, res) {
 
     if (!repoUrl) {
       return res.status(400).json({
-        error: 'Repository URL is required. Provide a GitHub URL or owner/repo format.'
+        error: 'Repository URL or username is required. Provide a GitHub URL (owner/repo) or username.'
       });
     }
 
-    console.log(`Analyzing repository: ${repoUrl}`);
+    // Detect if input is a username or repository URL
+    const inputType = detectInputType(repoUrl);
+    console.log(`Detected input type: ${inputType.type}`, inputType);
 
-    // Analyze the GitHub repository
-    const gitStats = await analyzeGitHubRepo(repoUrl, githubToken);
+    let gitStats;
+
+    if (inputType.type === 'profile') {
+      console.log(`Analyzing profile: ${inputType.username}`);
+      gitStats = await analyzeGitHubProfile(inputType.username, githubToken);
+    } else {
+      console.log(`Analyzing repository: ${inputType.owner}/${inputType.repo}`);
+      gitStats = await analyzeGitHubRepo(`${inputType.owner}/${inputType.repo}`, githubToken);
+    }
 
     // Generate roasts based on the analysis
     const roastData = generateRoast(gitStats);
 
-    // Add repository info to response
+    // Add repository/profile info to response
     roastData.repository = gitStats.repositoryInfo;
+    roastData.analysisType = inputType.type;
 
     res.status(200).json(roastData);
   } catch (error) {
-    console.error('Error analyzing repository:', error);
+    console.error('Error analyzing:', error);
 
     res.status(500).json({
-      error: error.message || 'Failed to analyze repository'
+      error: error.message || 'Failed to analyze GitHub data'
     });
   }
 }

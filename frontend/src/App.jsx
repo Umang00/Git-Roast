@@ -17,7 +17,7 @@ function App() {
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
-      setError('Please enter a GitHub repository URL!')
+      setError('Please enter a GitHub repository URL or username!')
       return
     }
 
@@ -31,14 +31,16 @@ function App() {
       setShowConfetti(true)
       setTimeout(() => setShowConfetti(false), 5000)
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to analyze repository. Make sure the path is correct!')
+      setError(err.response?.data?.error || 'Failed to analyze. Make sure the username/repo is correct!')
     } finally {
       setLoading(false)
     }
   }
 
   const shareResults = () => {
-    const repoInfo = roastData?.repository ? ` (${roastData.repository.fullName})` : ''
+    const isProfile = roastData?.analysisType === 'profile'
+    const repoInfo = roastData?.repository ?
+      (isProfile ? ` (@${roastData.repository.username} profile)` : ` (${roastData.repository.fullName})`) : ''
     const text = `I just got roasted by GitRoast! 🔥${repoInfo}\n\nMy Developer Grade: ${roastData?.grade}\n\nTry it yourself at GitRoast!`
 
     if (navigator.share) {
@@ -146,7 +148,7 @@ function App() {
           <div className="bg-dark-card rounded-2xl p-8 card-glow border border-purple-500/30">
             <div className="flex items-center gap-2 mb-4">
               <Github className="w-6 h-6 text-neon-purple" />
-              <h2 className="text-2xl font-bold">Analyze Any GitHub Repository</h2>
+              <h2 className="text-2xl font-bold">Analyze GitHub Repos or Profiles</h2>
             </div>
 
             <div className="space-y-4">
@@ -156,11 +158,11 @@ function App() {
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && analyzeRepo()}
-                  placeholder="https://github.com/facebook/react or facebook/react"
+                  placeholder="facebook/react, Umang00, or https://github.com/torvalds/linux"
                   className="w-full px-4 py-3 bg-dark-bg border border-purple-500/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple transition-colors"
                 />
                 <p className="text-sm text-gray-400 mt-2">
-                  💡 Paste any public GitHub repository URL or use owner/repo format
+                  💡 Enter a username for profile-wide analysis or owner/repo for single repository
                 </p>
               </div>
 
@@ -249,6 +251,54 @@ function App() {
                   Share Your Grade
                 </motion.button>
               </motion.div>
+
+              {/* Profile Info (if analyzing a profile) */}
+              {roastData.analysisType === 'profile' && roastData.repository && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-dark-card rounded-2xl p-6 card-glow border border-blue-500/30"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <Github className="w-8 h-8 text-blue-400" />
+                    <div>
+                      <h3 className="text-2xl font-bold">Profile Analysis: @{roastData.repository.username}</h3>
+                      <p className="text-gray-400">Analyzed {roastData.repository.analyzedRepos} of {roastData.repository.totalRepos} repositories</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-400">{roastData.repository.publicRepos}</div>
+                      <div className="text-sm text-gray-400">Public Repos</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-green-400">{roastData.repository.followers}</div>
+                      <div className="text-sm text-gray-400">Followers</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-purple-400">{roastData.repository.following}</div>
+                      <div className="text-sm text-gray-400">Following</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-yellow-400">{roastData.stats.totalCommits}</div>
+                      <div className="text-sm text-gray-400">Total Commits</div>
+                    </div>
+                  </div>
+                  {roastData.repository.topRepos && roastData.repository.topRepos.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-bold text-gray-400 mb-2">Most Active Repositories:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {roastData.repository.topRepos.map((repo, idx) => (
+                          <span key={idx} className="bg-dark-bg px-3 py-1 rounded-full text-sm">
+                            {repo.name} <span className="text-gray-500">({repo.commits} commits)</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
               {/* Stats Grid */}
               <div className="grid md:grid-cols-3 gap-4">
