@@ -61,12 +61,10 @@ export default async function handler(req, res) {
     res.write(`data: ${JSON.stringify({ type: 'stats', data: gitStats })}\n\n`);
 
     // Generate streaming AI roast
-    let accumulatedText = '';
     let roastData;
 
     try {
       roastData = await generateStreamingAIRoast(gitStats, (chunk) => {
-        accumulatedText += chunk;
         // Send chunk to client
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`);
       });

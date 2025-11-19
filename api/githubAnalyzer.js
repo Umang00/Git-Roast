@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { withGithubRetry } from './retryUtils.js';
+import { withGitHubRetry } from './retryUtils.js';
 
 /**
  * Analyzes a GitHub user's entire profile (all public repositories)
@@ -13,7 +13,7 @@ export async function analyzeGitHubProfile(username, githubToken = null) {
 
   try {
     // Verify user exists
-    const userResponse = await withGithubRetry(() =>
+    const userResponse = await withGitHubRetry(() =>
       octokit.users.getByUsername({ username })
     );
     const userData = userResponse.data;
@@ -104,7 +104,7 @@ async function getAllUserRepos(octokit, username) {
 
   while (true) {
     try {
-      const response = await withGithubRetry(() =>
+      const response = await withGitHubRetry(() =>
         octokit.repos.listForUser({
           username,
           per_page: perPage,
@@ -137,26 +137,23 @@ async function getAllUserRepos(octokit, username) {
  * @returns {Object} { type: 'profile' | 'repo', username?, owner?, repo? }
  */
 export function detectInputType(input) {
-  // Remove whitespace and .git suffix
+  // Normalize input: trim whitespace, remove .git suffix
   input = input.trim().replace(/\.git$/, '');
 
-  // Check if it contains a slash (repo format)
-  if (input.includes('/')) {
-    const { owner, repo } = parseGitHubUrl(input);
-    if (owner && repo) {
-      return { type: 'repo', owner, repo };
-    }
+  // Try parsing as GitHub URL or owner/repo format
+  const { owner, repo } = parseGitHubUrl(input);
+
+  if (owner && repo) {
+    // Both owner and repo found - it's a repository
+    return { type: 'repo', owner, repo };
   }
 
-  // Check if it's a URL
-  if (input.includes('github.com')) {
-    const { owner, repo } = parseGitHubUrl(input);
-    if (owner && repo) {
-      return { type: 'repo', owner, repo };
-    }
+  if (owner && repo === null) {
+    // Only owner found (from profile URL like https://github.com/username)
+    return { type: 'profile', username: owner };
   }
 
-  // Otherwise treat as username
+  // No parsing match - treat input as plain username
   return { type: 'profile', username: input };
 }
 
@@ -180,7 +177,7 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
 
   try {
     // Get repository metadata
-    const repoData = await withGithubRetry(() =>
+    const repoData = await withGitHubRetry(() =>
       octokit.repos.get({ owner, repo })
     );
     const repoInfo = repoData.data;
@@ -196,7 +193,7 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
     let readmeContent = null;
     let readmeStats = null;
     try {
-      const readme = await withGithubRetry(() =>
+      const readme = await withGitHubRetry(() =>
         octokit.repos.getReadme({ owner, repo })
       );
       readmeContent = Buffer.from(readme.data.content, 'base64').toString('utf-8');
@@ -230,30 +227,39 @@ export async function analyzeGitHubRepo(repoUrl, githubToken = null) {
 
 /**
  * Parse GitHub URL to extract owner and repo
+ * Returns { owner, repo } for repository URLs
+ * Returns { owner, repo: null } for profile URLs
+ * Returns { owner: undefined, repo: undefined } if parsing fails
  */
 function parseGitHubUrl(url) {
   // Handle different formats:
-  // - https://github.com/owner/repo
-  // - https://github.com/owner/repo.git
-  // - git@github.com:owner/repo.git
-  // - owner/repo
+  // - https://github.com/owner/repo (repository)
+  // - https://github.com/owner/repo.git (repository)
+  // - https://github.com/username (profile)
+  // - https://github.com/username?tab=repositories (profile with query)
+  // - git@github.com:owner/repo.git (repository)
+  // - owner/repo (repository shorthand)
 
   let owner, repo;
 
-  // Remove .git suffix if present
-  url = url.replace(/\.git$/, '');
+  // Remove .git suffix and query/hash params
+  url = url.replace(/\.git$/, '').split(/[?#]/)[0].trim();
 
   // Match GitHub URL patterns
   const patterns = [
-    /github\.com[:/]([^/]+)\/([^/]+)/,  // https://github.com/owner/repo or git@github.com:owner/repo
-    /^([^/]+)\/([^/]+)$/,                // owner/repo
+    // Repository URL: https://github.com/owner/repo or git@github.com:owner/repo
+    { regex: /github\.com[:/]([^/]+)\/([^/]+)/, type: 'repo' },
+    // Profile URL: https://github.com/username (single segment)
+    { regex: /github\.com[:/]([^/]+)\/?$/, type: 'profile' },
+    // Plain owner/repo format
+    { regex: /^([^/]+)\/([^/]+)$/, type: 'repo' },
   ];
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
+  for (const { regex, type } of patterns) {
+    const match = url.match(regex);
     if (match) {
       owner = match[1];
-      repo = match[2];
+      repo = type === 'repo' ? match[2] : null;
       break;
     }
   }
@@ -271,7 +277,7 @@ async function getAllCommits(octokit, owner, repo, maxCommits = 1000) {
 
   while (commits.length < maxCommits) {
     try {
-      const response = await withGithubRetry(() =>
+      const response = await withGitHubRetry(() =>
         octokit.repos.listCommits({
           owner,
           repo,

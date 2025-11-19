@@ -90,7 +90,11 @@ function App() {
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), 5000)
       } catch (err) {
-        setError(err.response?.data?.error || 'Failed to analyze. Make sure the username/repo is correct!')
+        // Ensure error is always a string, not an object
+        const errorMessage = err.response?.data?.error
+          || err.message
+          || 'Failed to analyze. Make sure the username/repo is correct!'
+        setError(String(errorMessage))
       }
     } finally {
       setLoading(false)

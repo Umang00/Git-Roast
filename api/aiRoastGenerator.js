@@ -20,7 +20,7 @@ function getGeminiClient() {
 
   // Use LLM_* prefix for model configuration (flexible for future model changes)
   const model = process.env.LLM_MODEL || 'gemini-2.5-flash';
-  const temperature = parseFloat(process.env.LLM_TEMPERATURE || '1.2');
+  const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.9');
   const topP = parseFloat(process.env.LLM_TOP_P || '0.95');
   const topK = parseInt(process.env.LLM_TOP_K || '64', 10);
   const maxOutputTokens = parseInt(process.env.LLM_MAX_OUTPUT_TOKENS || '8192', 10);

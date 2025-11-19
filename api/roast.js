@@ -56,7 +56,6 @@ export default async function handler(req, res) {
 
     // Try AI-powered roasts first, fall back to templates if it fails
     let roastData;
-    let usedFallback = false;
     try {
       console.log('Attempting AI-powered roast generation...');
       roastData = await generateAIRoast(gitStats);
@@ -64,7 +63,6 @@ export default async function handler(req, res) {
     } catch (aiError) {
       console.warn('AI roast generation failed, falling back to templates:', aiError.message);
       roastData = generateRoast(gitStats);
-      usedFallback = true;
 
       // Add fun fallback message as a roast
       roastData.roasts.unshift({

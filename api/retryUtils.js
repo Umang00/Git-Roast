@@ -7,8 +7,15 @@ import Bottleneck from 'bottleneck';
 
 /**
  * Bottleneck limiter for GitHub API
- * - Without token: 60 req/hour = 1 req/minute
- * - With token: 5000 req/hour = ~83 req/minute
+ * Configured for safe rate limiting:
+ * - 60 requests per minute (reservoir refreshes every 60s)
+ * - Max 10 concurrent requests
+ * - Min 100ms between requests
+ *
+ * Note: GitHub's actual limits are:
+ * - Without token: 60 req/hour
+ * - With token: 5000 req/hour
+ * Our conservative settings prevent bursting into rate limits.
  */
 export const githubLimiter = new Bottleneck({
   minTime: 100, // Minimum 100ms between requests
@@ -43,15 +50,12 @@ export async function withRetry(fn, options = {}) {
     onRetry = null,
   } = options;
 
-  let lastError;
   let delay = initialDelay;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error;
-
       // Check if we should retry
       const shouldRetry =
         attempt < maxRetries &&
@@ -82,9 +86,6 @@ export async function withRetry(fn, options = {}) {
       delay = Math.min(delay * backoffFactor, maxDelay);
     }
   }
-
-  // All retries failed
-  throw lastError;
 }
 
 /**
