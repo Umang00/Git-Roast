@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
 import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitter, Linkedin, Copy, Check } from 'lucide-react'
@@ -18,6 +18,9 @@ function App() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [linkedInCopied, setLinkedInCopied] = useState(false)
+
+  // Ref to track LinkedIn open timeout for cleanup
+  const linkedInTimeoutRef = useRef(null)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -155,17 +158,23 @@ Try it: ${websiteUrl}
     // LinkedIn doesn't support pre-filled text, so copy to clipboard + show toast
     const text = generateViralMessage()
 
+    // Clear any existing timeout
+    if (linkedInTimeoutRef.current) {
+      clearTimeout(linkedInTimeoutRef.current)
+    }
+
     try {
       await navigator.clipboard.writeText(text)
       setLinkedInCopied(true)
 
-      // Open LinkedIn post page
-      setTimeout(() => {
+      // Open LinkedIn post page after short delay
+      linkedInTimeoutRef.current = setTimeout(() => {
         window.open('https://www.linkedin.com/feed/', '_blank')
+        linkedInTimeoutRef.current = null
       }, 500)
     } catch (err) {
       console.error('Copy failed:', err)
-      // Fallback: just open LinkedIn
+      // Fallback: just open LinkedIn immediately
       window.open('https://www.linkedin.com/feed/', '_blank')
     }
   }
@@ -210,6 +219,15 @@ Try it: ${websiteUrl}
     const timer = setTimeout(() => setLinkedInCopied(false), 3000)
     return () => clearTimeout(timer)
   }, [linkedInCopied])
+
+  // Cleanup LinkedIn open timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (linkedInTimeoutRef.current) {
+        clearTimeout(linkedInTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const getGradeColor = (grade) => {
     const colors = {

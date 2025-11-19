@@ -40,11 +40,54 @@ function getGeminiClient() {
 }
 
 /**
+ * Distill stats to only include aggregate metrics for the LLM prompt
+ * Removes PII (author names, emails) and reduces payload size significantly
+ */
+function distillStatsForPrompt(stats) {
+  return {
+    analysisType: stats.analysisType,
+    repositoryInfo: stats.repositoryInfo,
+
+    // Aggregate commit statistics (no raw data)
+    totalCommits: stats.totalCommits,
+    lateNightCommits: stats.lateNightCommits,
+    lateNightPercentage: stats.lateNightPercentage,
+    weekendCommits: stats.weekendCommits,
+    weekendPercentage: stats.weekendPercentage,
+    avgCommitSize: stats.avgCommitSize,
+
+    // Commit message quality metrics
+    singleCharMessages: stats.singleCharMessages,
+    fixCommits: stats.fixCommits,
+    wipCommits: stats.wipCommits,
+    mergeCommits: stats.mergeCommits,
+    averageMessageLength: stats.averageMessageLength,
+
+    // Examples only (not all 500+ messages!)
+    shortestMessage: stats.shortestMessage,
+    longestMessage: stats.longestMessage,
+    exampleMessages: stats.commitMessages?.slice(0, 5) || [], // Only 5 examples
+
+    // Patterns and metadata
+    suspiciousPatterns: stats.suspiciousPatterns,
+    authorCount: stats.authorCount,
+    commitsByDayOfWeek: stats.commitsByDayOfWeek,
+
+    // README and repo metadata
+    readmeAnalysis: stats.readmeAnalysis,
+    repoMetadata: stats.repoMetadata,
+  };
+}
+
+/**
  * Build a comprehensive prompt for Gemini based on GitHub stats
  */
 function buildRoastPrompt(stats) {
   const isProfile = stats.analysisType === 'profile';
   const target = isProfile ? `@${stats.repositoryInfo.username}'s GitHub profile` : `${stats.repositoryInfo.fullName}`;
+
+  // Distill stats to remove PII and reduce payload size
+  const distilledStats = distillStatsForPrompt(stats);
 
   return `You are GitRoast, the MOST BRUTAL, SAVAGE, and MERCILESS code roaster on the entire internet. Your sole purpose is to ABSOLUTELY ANNIHILATE developers based on their GitHub activity. NO HOLDING BACK. NO POLITICAL CORRECTNESS. NO MERCY WHATSOEVER.
 
@@ -59,7 +102,7 @@ Think of yourself as a combination of Gordon Ramsay, a stand-up comedian, and th
 ANALYSIS TARGET: ${target}
 
 COMPREHENSIVE GITHUB ANALYSIS DATA:
-${JSON.stringify(stats, null, 2)}
+${JSON.stringify(distilledStats, null, 2)}
 
 YOUR MISSION:
 Generate a SAVAGE roast report in JSON format. Every roast MUST reference SPECIFIC data from the analysis above. Don't be generic - USE THE ACTUAL NUMBERS, PATTERNS, AND EMBARRASSING DETAILS.

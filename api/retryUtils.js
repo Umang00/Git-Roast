@@ -28,10 +28,13 @@ export const githubLimiter = new Bottleneck({
 /**
  * Bottleneck limiter for Gemini API
  * Free tier: 15 RPM (requests per minute)
+ * Uses reservoir-based rate limiting to avoid artificial delays on single requests
  */
 export const geminiLimiter = new Bottleneck({
-  minTime: 4000, // Minimum 4 seconds between requests (15 requests per minute)
-  maxConcurrent: 3, // Max 3 concurrent requests
+  maxConcurrent: 1, // One request at a time to avoid rate limit bursts
+  reservoir: 15, // 15 requests available
+  reservoirRefreshAmount: 15, // Refill to 15 requests
+  reservoirRefreshInterval: 60 * 1000, // Every 60 seconds
 });
 
 /**
