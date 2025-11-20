@@ -54,9 +54,8 @@ function distillStatsForPrompt(stats) {
 
     // If more than 10 commits, add diverse samples
     if (messages.length > 10) {
-      // Middle commits (5 random samples for variety)
+      // Middle commits (5 samples from middle third for variety)
       const middleStart = Math.floor(messages.length / 3);
-      const middleEnd = Math.floor(2 * messages.length / 3);
       sampleMessages.push(...messages.slice(middleStart, middleStart + 5));
 
       // Oldest commits (last 5) - shows evolution
@@ -105,7 +104,16 @@ function distillStatsForPrompt(stats) {
  */
 function buildRoastPrompt(stats) {
   const isProfile = stats.analysisType === 'profile';
-  const target = isProfile ? `@${stats.repositoryInfo.username}'s GitHub profile` : `${stats.repositoryInfo.fullName}`;
+  const repoInfo = stats.repositoryInfo || {};
+
+  // Build target label with defensive fallbacks
+  const profileLabel = repoInfo.username
+    ? `@${repoInfo.username}'s GitHub profile`
+    : 'this GitHub profile';
+  const repoLabel = repoInfo.fullName || repoInfo.owner && repoInfo.repo
+    ? repoInfo.fullName || `${repoInfo.owner}/${repoInfo.repo}`
+    : 'this repository';
+  const target = isProfile ? profileLabel : repoLabel;
 
   // Distill stats to remove PII and reduce payload size
   const distilledStats = distillStatsForPrompt(stats);
@@ -251,8 +259,11 @@ export async function generateAIRoast(stats) {
     // Parse JSON response
     let roastData;
     try {
-      // Remove markdown code blocks if present
-      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      // Remove markdown code blocks if present (tolerant of \r\n and optional language tag)
+      const cleanedText = text
+        .replace(/```(?:json)?\r?\n?/gi, '')
+        .replace(/```\r?\n?/g, '')
+        .trim();
       roastData = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('Failed to parse AI response:', text);
@@ -299,8 +310,18 @@ export async function generateStreamingAIRoast(stats, onChunk) {
     }
 
     // Parse final result
-    const cleanedText = fullText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const roastData = JSON.parse(cleanedText);
+    let roastData;
+    try {
+      // Remove markdown code blocks if present (tolerant of \r\n and optional language tag)
+      const cleanedText = fullText
+        .replace(/```(?:json)?\r?\n?/gi, '')
+        .replace(/```\r?\n?/g, '')
+        .trim();
+      roastData = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('Failed to parse streaming AI response:', fullText);
+      throw new Error('AI generated invalid response format');
+    }
 
     if (!roastData.grade || !roastData.roasts || !Array.isArray(roastData.roasts)) {
       throw new Error('AI response missing required fields');

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
-import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitter, Linkedin, Copy, Check } from 'lucide-react'
+import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
 import axios from 'axios'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import './App.css'
 
 // API URL configuration - uses environment variable or falls back to relative path
@@ -18,9 +20,12 @@ function App() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [linkedInCopied, setLinkedInCopied] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
 
-  // Ref to track LinkedIn open timeout for cleanup
+  // Refs to track timeouts for cleanup
   const linkedInTimeoutRef = useRef(null)
+  const confettiTimeoutRef = useRef(null)
+  const resultsRef = useRef(null)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -71,7 +76,15 @@ function App() {
             // Complete roast data
             setRoastData(data.data)
             setShowConfetti(true)
-            setTimeout(() => setShowConfetti(false), 5000)
+
+            // Clear any existing confetti timeout
+            if (confettiTimeoutRef.current) {
+              clearTimeout(confettiTimeoutRef.current)
+            }
+            confettiTimeoutRef.current = setTimeout(() => {
+              setShowConfetti(false)
+              confettiTimeoutRef.current = null
+            }, 5000)
           } else if (data.type === 'error') {
             throw new Error(data.error)
           }
@@ -108,7 +121,15 @@ function App() {
         const response = await axios.post(`${API_URL}/roast`, { repoUrl })
         setRoastData(response.data)
         setShowConfetti(true)
-        setTimeout(() => setShowConfetti(false), 5000)
+
+        // Clear any existing confetti timeout
+        if (confettiTimeoutRef.current) {
+          clearTimeout(confettiTimeoutRef.current)
+        }
+        confettiTimeoutRef.current = setTimeout(() => {
+          setShowConfetti(false)
+          confettiTimeoutRef.current = null
+        }, 5000)
       } catch (err) {
         // Ensure error is always a string, not an object
         const errorMessage = err.response?.data?.error
@@ -224,6 +245,68 @@ Try it: ${websiteUrl}
     }
   }
 
+  const downloadAsPDF = async () => {
+    if (!resultsRef.current || downloadingPDF) return
+
+    try {
+      setDownloadingPDF(true)
+
+      // Scroll to top to ensure full content is visible
+      window.scrollTo(0, 0)
+
+      // Wait for scroll to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Capture the results div as canvas with high quality
+      const canvas = await html2canvas(resultsRef.current, {
+        scale: 2, // Higher quality (2x resolution)
+        useCORS: true, // Allow cross-origin images
+        logging: false,
+        backgroundColor: '#0a0a0f', // Match dark background
+        windowWidth: resultsRef.current.scrollWidth,
+        windowHeight: resultsRef.current.scrollHeight,
+      })
+
+      // Calculate PDF dimensions
+      const imgWidth = 210 // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const imgData = canvas.toDataURL('image/png')
+
+      // Handle multi-page PDFs for long content
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= 297 // A4 height in mm
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= 297
+      }
+
+      // Generate filename from repo/profile name
+      const filename = roastData.repository?.fullName
+        ? `GitRoast-${roastData.repository.fullName.replace('/', '-')}.pdf`
+        : roastData.repository?.username
+        ? `GitRoast-${roastData.repository.username}.pdf`
+        : 'GitRoast-Report.pdf'
+
+      // Download PDF
+      pdf.save(filename)
+
+      setDownloadingPDF(false)
+    } catch (error) {
+      console.error('Failed to generate PDF:', error)
+      setError('Failed to generate PDF. Please try again.')
+      setDownloadingPDF(false)
+    }
+  }
+
   // Cleanup timer for copied state
   useEffect(() => {
     if (!copied) return
@@ -238,11 +321,14 @@ Try it: ${websiteUrl}
     return () => clearTimeout(timer)
   }, [linkedInCopied])
 
-  // Cleanup LinkedIn open timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (linkedInTimeoutRef.current) {
         clearTimeout(linkedInTimeoutRef.current)
+      }
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current)
       }
     }
   }, [])
@@ -437,6 +523,7 @@ Try it: ${websiteUrl}
         <AnimatePresence>
           {roastData && (
             <motion.div
+              ref={resultsRef}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -508,6 +595,21 @@ Try it: ${websiteUrl}
                         Copy to Clipboard
                       </>
                     )}
+                  </motion.button>
+
+                  <motion.button
+                    onClick={downloadAsPDF}
+                    disabled={downloadingPDF}
+                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-all ${
+                      downloadingPDF
+                        ? 'bg-gradient-to-r from-gray-600 to-gray-800 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-orange-500 to-red-600'
+                    }`}
+                    whileHover={{ scale: downloadingPDF ? 1 : 1.05 }}
+                    whileTap={{ scale: downloadingPDF ? 1 : 0.95 }}
+                  >
+                    <Download className="w-5 h-5" />
+                    {downloadingPDF ? 'Generating PDF...' : 'Download as PDF'}
                   </motion.button>
                 </div>
 
@@ -630,6 +732,7 @@ Try it: ${websiteUrl}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.7 + index * 0.1 }}
+                        whileHover={{ scale: 1.02 }}
                         className="bg-dark-bg rounded-lg p-4 border border-yellow-500/30"
                       >
                         <div className="text-3xl mb-2">{achievement.emoji}</div>
@@ -676,10 +779,58 @@ Try it: ${websiteUrl}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="text-center mt-16 text-gray-500"
+          className="text-center mt-16 pb-8"
         >
-          <p className="mb-2">Made with 🔥 and absolutely no mercy</p>
-          <p className="text-sm">Share your savage roast and go viral! 🚀</p>
+          <p className="mb-2 text-gray-500">Made with 🔥 and absolutely no mercy</p>
+          <p className="text-sm text-gray-500 mb-4">Share your savage roast and go viral! 🚀</p>
+
+          {/* Developer Credit */}
+          {import.meta.env.VITE_DEVELOPER_NAME && (
+            <div className="mt-6 pt-6 border-t border-gray-800">
+              <p className="text-sm text-gray-400 mb-3">
+                Crafted by <span className="gradient-text font-semibold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                {import.meta.env.VITE_DEVELOPER_LINKEDIN && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_LINKEDIN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-blue-400 transition-colors"
+                    title="LinkedIn Profile"
+                  >
+                    <Linkedin className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_WEBSITE && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_WEBSITE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-purple-400 transition-colors"
+                    title="Portfolio Website"
+                  >
+                    <Globe className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_EMAIL && (
+                  <motion.a
+                    href={`mailto:${import.meta.env.VITE_DEVELOPER_EMAIL}`}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-green-400 transition-colors"
+                    title="Email"
+                  >
+                    <Mail className="w-5 h-5" />
+                  </motion.a>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
@@ -706,6 +857,7 @@ function RoastCard({ roast, index }) {
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3 + index * 0.1 }}
+      whileHover={{ scale: 1.02 }}
       className="bg-dark-card rounded-xl p-6 card-glow border border-red-500/30"
     >
       <div className="flex items-start gap-4">
