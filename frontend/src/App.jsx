@@ -5,6 +5,7 @@ import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitt
 import axios from 'axios'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { Analytics } from '@vercel/analytics/react'
 import './App.css'
 
 // API URL configuration - uses environment variable or falls back to relative path
@@ -251,21 +252,63 @@ Try it: ${websiteUrl}
     try {
       setDownloadingPDF(true)
 
-      // Scroll to top to ensure full content is visible
+      // Step 1: Disable animations and transitions
+      const style = document.createElement('style')
+      style.id = 'pdf-disable-animations'
+      style.innerHTML = `
+        * {
+          animation: none !important;
+          animation-duration: 0s !important;
+          transition: none !important;
+          transition-duration: 0s !important;
+        }
+      `
+      document.head.appendChild(style)
+
+      // Step 2: Scroll to top to ensure full content is visible
       window.scrollTo(0, 0)
 
-      // Wait for scroll to complete
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Step 3: Wait for fonts to be ready
+      await document.fonts.ready
 
-      // Capture the results div as canvas with high quality
+      // Step 4: Wait for all images to load
+      const images = Array.from(resultsRef.current.querySelectorAll('img'))
+      await Promise.all(
+        images.map(img =>
+          img.complete ? Promise.resolve() :
+          new Promise(resolve => {
+            img.onload = resolve
+            img.onerror = resolve
+          })
+        )
+      )
+
+      // Step 5: Small delay to ensure everything is rendered
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Step 6: Capture with improved settings
       const canvas = await html2canvas(resultsRef.current, {
-        scale: 2, // Higher quality (2x resolution)
+        scale: Math.min(2, window.devicePixelRatio || 1), // Adaptive quality
         useCORS: true, // Allow cross-origin images
+        allowTaint: false,
         logging: false,
         backgroundColor: '#0a0a0f', // Match dark background
         windowWidth: resultsRef.current.scrollWidth,
         windowHeight: resultsRef.current.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Ensure cloned document has proper styles
+          const clonedElement = clonedDoc.getElementById(resultsRef.current.id) || clonedDoc.querySelector('[ref]')
+          if (clonedElement) {
+            clonedElement.style.transform = 'none'
+          }
+        }
       })
+
+      // Step 7: Remove animation-disable style
+      const styleElement = document.getElementById('pdf-disable-animations')
+      if (styleElement) {
+        document.head.removeChild(styleElement)
+      }
 
       // Calculate PDF dimensions
       const imgWidth = 210 // A4 width in mm
@@ -273,7 +316,7 @@ Try it: ${websiteUrl}
 
       // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/png', 0.95) // Slightly compressed for smaller file size
 
       // Handle multi-page PDFs for long content
       let heightLeft = imgHeight
@@ -304,6 +347,12 @@ Try it: ${websiteUrl}
       console.error('Failed to generate PDF:', error)
       setError('Failed to generate PDF. Please try again.')
       setDownloadingPDF(false)
+
+      // Cleanup: remove animation-disable style if error occurred
+      const styleElement = document.getElementById('pdf-disable-animations')
+      if (styleElement) {
+        document.head.removeChild(styleElement)
+      }
     }
   }
 
@@ -412,9 +461,54 @@ Try it: ${websiteUrl}
           <p className="text-2xl text-gray-300 mb-2">
             Get Your Code Brutally Roasted by AI 🔥
           </p>
-          <p className="text-lg text-gray-400">
-            The Most Savage GitHub Roaster - AI-Powered & Brutally Honest
-          </p>
+
+          {/* Developer Credit */}
+          {import.meta.env.VITE_DEVELOPER_NAME && (
+            <div className="flex items-center justify-center gap-3 text-gray-400">
+              <span className="text-sm">
+                Crafted by <span className="gradient-text font-semibold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
+              </span>
+              <div className="flex items-center gap-3">
+                {import.meta.env.VITE_DEVELOPER_LINKEDIN && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_LINKEDIN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-blue-400 transition-colors"
+                    title="LinkedIn Profile"
+                  >
+                    <Linkedin className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_WEBSITE && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_WEBSITE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-purple-400 transition-colors"
+                    title="Portfolio Website"
+                  >
+                    <Globe className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_EMAIL && (
+                  <motion.a
+                    href={`mailto:${import.meta.env.VITE_DEVELOPER_EMAIL}`}
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-green-400 transition-colors"
+                    title="Email"
+                  >
+                    <Mail className="w-5 h-5" />
+                  </motion.a>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Input Section */}
@@ -427,7 +521,7 @@ Try it: ${websiteUrl}
           <div className="bg-dark-card rounded-2xl p-8 card-glow border border-purple-500/30">
             <div className="flex items-center gap-2 mb-4">
               <Github className="w-6 h-6 text-neon-purple" />
-              <h2 className="text-2xl font-bold">Analyze GitHub Repos or Profiles</h2>
+              <h2 className="text-2xl font-bold">Analyze Public GitHub Repos or Profiles</h2>
             </div>
 
             <div className="space-y-4">
@@ -609,7 +703,7 @@ Try it: ${websiteUrl}
                     whileTap={{ scale: downloadingPDF ? 1 : 0.95 }}
                   >
                     <Download className="w-5 h-5" />
-                    {downloadingPDF ? 'Generating PDF...' : 'Download as PDF'}
+                    {downloadingPDF ? 'Generating PDF...' : 'Download Full Roast'}
                   </motion.button>
                 </div>
 
@@ -782,57 +876,12 @@ Try it: ${websiteUrl}
           className="text-center mt-16 pb-8"
         >
           <p className="mb-2 text-gray-500">Made with 🔥 and absolutely no mercy</p>
-          <p className="text-sm text-gray-500 mb-4">Share your savage roast and go viral! 🚀</p>
-
-          {/* Developer Credit */}
-          {import.meta.env.VITE_DEVELOPER_NAME && (
-            <div className="mt-6 pt-6 border-t border-gray-800">
-              <p className="text-sm text-gray-400 mb-3">
-                Crafted by <span className="gradient-text font-semibold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
-              </p>
-              <div className="flex items-center justify-center gap-4">
-                {import.meta.env.VITE_DEVELOPER_LINKEDIN && (
-                  <motion.a
-                    href={import.meta.env.VITE_DEVELOPER_LINKEDIN}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="text-gray-400 hover:text-blue-400 transition-colors"
-                    title="LinkedIn Profile"
-                  >
-                    <Linkedin className="w-5 h-5" />
-                  </motion.a>
-                )}
-                {import.meta.env.VITE_DEVELOPER_WEBSITE && (
-                  <motion.a
-                    href={import.meta.env.VITE_DEVELOPER_WEBSITE}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="text-gray-400 hover:text-purple-400 transition-colors"
-                    title="Portfolio Website"
-                  >
-                    <Globe className="w-5 h-5" />
-                  </motion.a>
-                )}
-                {import.meta.env.VITE_DEVELOPER_EMAIL && (
-                  <motion.a
-                    href={`mailto:${import.meta.env.VITE_DEVELOPER_EMAIL}`}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="text-gray-400 hover:text-green-400 transition-colors"
-                    title="Email"
-                  >
-                    <Mail className="w-5 h-5" />
-                  </motion.a>
-                )}
-              </div>
-            </div>
-          )}
+          <p className="text-sm text-gray-500">Share your savage roast and go viral! 🚀</p>
         </motion.div>
       </div>
+
+      {/* Vercel Analytics */}
+      <Analytics />
     </div>
   )
 }
