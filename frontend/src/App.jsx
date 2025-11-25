@@ -20,6 +20,7 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [linkedInCopied, setLinkedInCopied] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [pdfError, setPdfError] = useState('') // Separate error state for PDF download
 
   // Refs to track timeouts for cleanup
   const linkedInTimeoutRef = useRef(null)
@@ -301,6 +302,7 @@ Try it: ${websiteUrl}
 
     try {
       setDownloadingPDF(true)
+      setPdfError('') // Clear any previous errors
 
       // Call the PDF generation API endpoint
       const response = await axios.post(`${API_URL}/generate-pdf`, roastData, {
@@ -327,11 +329,11 @@ Try it: ${websiteUrl}
       // Cleanup
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-
-      setDownloadingPDF(false)
     } catch (error) {
       console.error('Failed to download PDF:', error)
-      setError('Failed to generate PDF. Please try again.')
+      // Show error notification near the download button, not in the main error block
+      setPdfError('Failed to generate PDF. Please try again.')
+    } finally {
       setDownloadingPDF(false)
     }
   }
@@ -349,6 +351,13 @@ Try it: ${websiteUrl}
     const timer = setTimeout(() => setLinkedInCopied(false), 3000)
     return () => clearTimeout(timer)
   }, [linkedInCopied])
+
+  // Cleanup timer for PDF error state
+  useEffect(() => {
+    if (!pdfError) return
+    const timer = setTimeout(() => setPdfError(''), 5000) // Show error for 5 seconds
+    return () => clearTimeout(timer)
+  }, [pdfError])
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -697,6 +706,22 @@ Try it: ${websiteUrl}
                     >
                       <p className="text-sm text-blue-300">
                         ✅ Text copied! Paste it into LinkedIn 📝
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* PDF Error Notification - Shows near download button */}
+                <AnimatePresence>
+                  {pdfError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-3 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-center"
+                    >
+                      <p className="text-sm text-red-300">
+                        ❌ {pdfError}
                       </p>
                     </motion.div>
                   )}

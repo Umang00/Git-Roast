@@ -1,10 +1,10 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 /**
  * PDF Generator for GitRoast Reports
  * Uses @react-pdf/renderer for server-side PDF generation
- * Creates professional, styled PDFs from roast data
+ * IMPORTANT: Uses React.createElement instead of JSX to avoid transpilation issues in Vercel serverless functions
  */
 
 // Define styles for PDF components
@@ -157,98 +157,130 @@ const styles = StyleSheet.create({
   },
 });
 
-// PDF Document Component
-export const RoastPDF = ({ roastData }) => {
+// PDF Document Component using React.createElement (no JSX)
+export function createRoastPDF(roastData) {
   const { repository, stats, grade, roasts, suggestions } = roastData;
+
+  // Get website URL from environment variable or use default
+  const websiteUrl = process.env.WEBSITE_URL || 'https://gitrosts.vercel.app';
 
   // Generate filename-friendly repo name
   const repoName = repository?.fullName || repository?.username || 'Unknown';
 
-  return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>🔥 GitRoast Report 🔥</Text>
-          <Text style={styles.subtitle}>{repoName}</Text>
-          <Text style={styles.subtitle}>
-            {new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </Text>
-        </View>
+  return React.createElement(
+    Document,
+    null,
+    React.createElement(
+      Page,
+      { size: 'A4', style: styles.page },
 
-        {/* Grade Section */}
-        <View style={styles.gradeSection}>
-          <Text style={styles.gradeBadge}>{grade}</Text>
-          <Text style={styles.gradeLabel}>Overall Grade</Text>
-        </View>
+      // Header
+      React.createElement(
+        View,
+        { style: styles.header },
+        React.createElement(Text, { style: styles.title }, '🔥 GitRoast Report 🔥'),
+        React.createElement(Text, { style: styles.subtitle }, repoName),
+        React.createElement(
+          Text,
+          { style: styles.subtitle },
+          new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        )
+      ),
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>📊 Statistics</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stats.totalCommits}</Text>
-              <Text style={styles.statLabel}>Total Commits</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stats.lateNightCommits}</Text>
-              <Text style={styles.statLabel}>Late Night Commits</Text>
-              <Text style={styles.statSubtitle}>{stats.lateNightPercentage}%</Text>
-            </View>
-          </View>
-        </View>
+      // Grade Section
+      React.createElement(
+        View,
+        { style: styles.gradeSection },
+        React.createElement(Text, { style: styles.gradeBadge }, grade),
+        React.createElement(Text, { style: styles.gradeLabel }, 'Overall Grade')
+      ),
 
-        {/* Roasts Section */}
-        <View style={styles.roastsSection}>
-          <Text style={styles.sectionTitle}>🔥 The Roasts</Text>
-          {roasts && roasts.map((roast, index) => (
-            <View key={index} style={styles.roastCard}>
-              <View style={styles.roastHeader}>
-                <Text style={styles.roastEmoji}>{roast.emoji}</Text>
-                <Text style={styles.roastTitle}>{roast.title}</Text>
-              </View>
-              <Text style={styles.roastContent}>{roast.content}</Text>
-              {roast.severity && (
-                <View style={styles.severityDots}>
-                  {[...Array(5)].map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.severityDot,
-                        i < roast.severity ? styles.severityActive : styles.severityInactive
-                      ]}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          ))}
-        </View>
+      // Stats Section
+      React.createElement(
+        View,
+        { style: styles.statsSection },
+        React.createElement(Text, { style: styles.sectionTitle }, '📊 Statistics'),
+        React.createElement(
+          View,
+          { style: styles.statsGrid },
+          React.createElement(
+            View,
+            { style: styles.statCard },
+            React.createElement(Text, { style: styles.statValue }, String(stats.totalCommits)),
+            React.createElement(Text, { style: styles.statLabel }, 'Total Commits')
+          ),
+          React.createElement(
+            View,
+            { style: styles.statCard },
+            React.createElement(Text, { style: styles.statValue }, String(stats.lateNightCommits)),
+            React.createElement(Text, { style: styles.statLabel }, 'Late Night Commits'),
+            React.createElement(Text, { style: styles.statSubtitle }, `${stats.lateNightPercentage}%`)
+          )
+        )
+      ),
 
-        {/* Suggestions Section */}
-        {suggestions && suggestions.length > 0 && (
-          <View style={styles.suggestionsSection}>
-            <Text style={[styles.sectionTitle, { color: '#10b981' }]}>
-              💡 Suggestions for Improvement
-            </Text>
-            {suggestions.map((suggestion, index) => (
-              <Text key={index} style={styles.suggestionItem}>
-                • {suggestion}
-              </Text>
-            ))}
-          </View>
-        )}
+      // Roasts Section
+      React.createElement(
+        View,
+        { style: styles.roastsSection },
+        React.createElement(Text, { style: styles.sectionTitle }, '🔥 The Roasts'),
+        ...(roasts && Array.isArray(roasts) ? roasts.map((roast, index) =>
+          React.createElement(
+            View,
+            { key: index, style: styles.roastCard },
+            React.createElement(
+              View,
+              { style: styles.roastHeader },
+              React.createElement(Text, { style: styles.roastEmoji }, roast.emoji),
+              React.createElement(Text, { style: styles.roastTitle }, roast.title)
+            ),
+            React.createElement(Text, { style: styles.roastContent }, roast.content),
+            roast.severity ? React.createElement(
+              View,
+              { style: styles.severityDots },
+              ...[...Array(5)].map((_, i) =>
+                React.createElement(View, {
+                  key: i,
+                  style: [
+                    styles.severityDot,
+                    i < roast.severity ? styles.severityActive : styles.severityInactive
+                  ]
+                })
+              )
+            ) : null
+          )
+        ) : [])
+      ),
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerBold}>Made with 🔥 and absolutely no mercy</Text>
-          <Text>Get your own roast at gitroast.com</Text>
-        </View>
-      </Page>
-    </Document>
+      // Suggestions Section
+      suggestions && suggestions.length > 0 ? React.createElement(
+        View,
+        { style: styles.suggestionsSection },
+        React.createElement(
+          Text,
+          { style: [styles.sectionTitle, { color: '#10b981' }] },
+          '💡 Suggestions for Improvement'
+        ),
+        ...suggestions.map((suggestion, index) =>
+          React.createElement(
+            Text,
+            { key: index, style: styles.suggestionItem },
+            `• ${suggestion}`
+          )
+        )
+      ) : null,
+
+      // Footer
+      React.createElement(
+        View,
+        { style: styles.footer },
+        React.createElement(Text, { style: styles.footerBold }, 'Made with 🔥 and absolutely no mercy'),
+        React.createElement(Text, null, `Get your own roast at ${websiteUrl}`)
+      )
+    )
   );
-};
+}
