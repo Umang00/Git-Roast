@@ -167,6 +167,9 @@ function App() {
     // Get website URL from env or use current location
     const websiteUrl = import.meta.env.VITE_WEBSITE_URL || window.location.origin
 
+    // Twitter character limit
+    const TWITTER_LIMIT = 280
+
     // Find the most savage roast (highest severity)
     const roasts = Array.isArray(roastData.roasts) ? roastData.roasts : []
     const savageRoast = roasts
@@ -174,21 +177,40 @@ function App() {
       .sort((a, b) => b.severity - a.severity)[0]
 
     if (savageRoast) {
-      // Use savage roast as hook
-      const roastSnippet = savageRoast.content.substring(0, 120)
-      return `🔥 Holy shit, I just got DESTROYED by AI!
+      // Build template with variable content
+      const template = `🔥 Holy shit, I just got DESTROYED by AI!
 
 ${target} - Grade: ${roastData.grade}
-Roast: "${roastSnippet}..."
+Roast: "ROAST_PLACEHOLDER..."
 
 I can't believe this is real 💀
 
 Get roasted: ${websiteUrl}
 #GitRoast`
+
+      // Calculate how much space we have for the roast snippet
+      const templateLength = template.replace('ROAST_PLACEHOLDER', '').length
+      const availableForRoast = TWITTER_LIMIT - templateLength
+
+      // Trim roast to fit within character limit
+      let roastSnippet = savageRoast.content
+      if (availableForRoast > 0) {
+        roastSnippet = roastSnippet.substring(0, availableForRoast)
+        // Try to end at a word boundary for cleaner truncation
+        const lastSpace = roastSnippet.lastIndexOf(' ')
+        if (lastSpace > availableForRoast * 0.8) {
+          roastSnippet = roastSnippet.substring(0, lastSpace)
+        }
+      } else {
+        // Template itself is too long, use minimal roast
+        roastSnippet = ''
+      }
+
+      return template.replace('ROAST_PLACEHOLDER', roastSnippet)
     }
 
     // Fallback if no savage roasts
-    return `🔥 An AI just brutally roasted ${target}!
+    const fallbackTemplate = `🔥 An AI just brutally roasted ${target}!
 
 Grade: ${roastData.grade}
 
@@ -196,6 +218,27 @@ This is savage AF 💀
 
 Try it: ${websiteUrl}
 #GitRoast`
+
+    // Ensure fallback also fits within limit
+    if (fallbackTemplate.length > TWITTER_LIMIT) {
+      // Truncate target if needed
+      const overflow = fallbackTemplate.length - TWITTER_LIMIT
+      const maxTargetLength = Math.max(10, target.length - overflow - 3) // Reserve 3 for "..."
+      const truncatedTarget = target.length > maxTargetLength
+        ? target.substring(0, maxTargetLength) + '...'
+        : target
+
+      return `🔥 An AI just brutally roasted ${truncatedTarget}!
+
+Grade: ${roastData.grade}
+
+This is savage AF 💀
+
+Try it: ${websiteUrl}
+#GitRoast`
+    }
+
+    return fallbackTemplate
   }
 
   const shareToTwitter = () => {
@@ -789,6 +832,7 @@ Try it: ${websiteUrl}
                   value={roastData.stats.lateNightCommits}
                   color="text-purple-400"
                   subtitle={`${roastData.stats.lateNightPercentage}%`}
+                  note="11PM-5AM UTC"
                 />
               </div>
 
@@ -882,7 +926,7 @@ Try it: ${websiteUrl}
   )
 }
 
-function StatCard({ icon, label, value, color, subtitle }) {
+function StatCard({ icon, label, value, color, subtitle, note }) {
   return (
     <motion.div
       whileHover={{ scale: 1.05 }}
@@ -892,8 +936,37 @@ function StatCard({ icon, label, value, color, subtitle }) {
       <div className="text-3xl font-bold mb-1">{value}</div>
       <div className="text-gray-400">{label}</div>
       {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
+      {note && <div className="text-xs text-gray-600 mt-1">{note}</div>}
     </motion.div>
   )
+}
+
+// Helper function to parse simple markdown (bold text) in roast content
+function parseMarkdown(text) {
+  if (!text) return text;
+
+  // Split by **bold** markers and create React elements
+  const parts = [];
+  const regex = /\*\*(.*?)\*\*/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the bold part
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    // Add bold part
+    parts.push(<strong key={match.index} className="font-bold text-white">{match[1]}</strong>);
+    lastIndex = regex.lastIndex;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
 }
 
 function RoastCard({ roast, index }) {
@@ -915,7 +988,7 @@ function RoastCard({ roast, index }) {
         </motion.div>
         <div className="flex-1">
           <h4 className="text-xl font-bold text-red-400 mb-2">{roast.title}</h4>
-          <p className="text-gray-300 leading-relaxed">{roast.content}</p>
+          <p className="text-gray-300 leading-relaxed">{parseMarkdown(roast.content)}</p>
           {roast.severity && (
             <div className="mt-3 flex gap-1">
               {[...Array(5)].map((_, i) => (

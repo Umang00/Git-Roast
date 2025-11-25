@@ -8,6 +8,24 @@ import { withGeminiRetry } from './retryUtils.js';
  */
 
 /**
+ * Parse float from environment variable with fallback
+ * Guards against NaN to prevent runtime errors in Gemini API
+ */
+function parseOrDefaultFloat(envVar, defaultValue) {
+  const parsed = parseFloat(envVar);
+  return !isNaN(parsed) ? parsed : defaultValue;
+}
+
+/**
+ * Parse integer from environment variable with fallback
+ * Guards against NaN to prevent runtime errors in Gemini API
+ */
+function parseOrDefaultInt(envVar, defaultValue) {
+  const parsed = parseInt(envVar, 10);
+  return !isNaN(parsed) ? parsed : defaultValue;
+}
+
+/**
  * Initialize Gemini AI with API key and configuration from environment
  * All parameters are configurable via environment variables for flexibility
  */
@@ -20,10 +38,10 @@ function getGeminiClient() {
 
   // Use LLM_* prefix for model configuration (flexible for future model changes)
   const model = process.env.LLM_MODEL || 'gemini-2.5-flash';
-  const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.9');
-  const topP = parseFloat(process.env.LLM_TOP_P || '0.95');
-  const topK = parseInt(process.env.LLM_TOP_K || '64', 10);
-  const maxOutputTokens = parseInt(process.env.LLM_MAX_OUTPUT_TOKENS || '8192', 10);
+  const temperature = parseOrDefaultFloat(process.env.LLM_TEMPERATURE, 0.9);
+  const topP = parseOrDefaultFloat(process.env.LLM_TOP_P, 0.95);
+  const topK = parseOrDefaultInt(process.env.LLM_TOP_K, 64);
+  const maxOutputTokens = parseOrDefaultInt(process.env.LLM_MAX_OUTPUT_TOKENS, 8192);
 
   console.log(`Initializing LLM: ${model} (temp: ${temperature}, topP: ${topP}, topK: ${topK})`);
 
@@ -63,6 +81,9 @@ function distillStatsForPrompt(stats) {
     }
   }
 
+  // Deduplicate commit messages while preserving order
+  const uniqueSampleMessages = [...new Set(sampleMessages)];
+
   return {
     analysisType: stats.analysisType,
     repositoryInfo: stats.repositoryInfo,
@@ -84,7 +105,7 @@ function distillStatsForPrompt(stats) {
     // Meaningful examples (best/worst/representative)
     shortestMessage: stats.shortestMessage,
     longestMessage: stats.longestMessage,
-    sampleCommitMessages: sampleMessages, // ~20 intelligent samples
+    sampleCommitMessages: uniqueSampleMessages, // ~20 intelligent samples (deduplicated)
 
     // Temporal patterns
     suspiciousPatterns: stats.suspiciousPatterns,
@@ -100,12 +121,22 @@ function distillStatsForPrompt(stats) {
 
 /**
  * Parse AI response text into JSON, cleaning markdown code blocks
+ * Only removes outer markdown fences, preserves backticks in actual content
  */
 function parseAIResponse(text) {
-  const cleanedText = text
-    .replace(/```(?:json)?\r?\n?/gi, '')
-    .replace(/```\r?\n?/g, '')
-    .trim();
+  if (!text) {
+    throw new Error('Empty AI response');
+  }
+
+  let cleanedText = text.trim();
+
+  // If the model wrapped the JSON in a markdown code block, extract just the JSON payload
+  // This prevents corrupting legitimate backticks inside the JSON content
+  const fencedMatch = cleanedText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedMatch && fencedMatch[1]) {
+    cleanedText = fencedMatch[1].trim();
+  }
+
   return JSON.parse(cleanedText);
 }
 
@@ -308,9 +339,14 @@ export async function generateStreamingAIRoast(stats, onChunk) {
       const chunkText = chunk.text();
       fullText += chunkText;
 
-      // Send chunk to callback
+      // Send chunk to callback (with error guard to prevent callback failures from breaking stream)
       if (onChunk) {
-        onChunk(chunkText);
+        try {
+          onChunk(chunkText);
+        } catch (callbackError) {
+          console.error('Error in onChunk callback:', callbackError);
+          // Continue streaming even if callback fails
+        }
       }
     }
 

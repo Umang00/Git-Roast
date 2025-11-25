@@ -341,8 +341,9 @@ function analyzeCommits(commits, owner, repo) {
   // Analyze each commit
   for (const commit of commits) {
     const date = new Date(commit.commit.author.date);
-    const hour = date.getHours();
-    const day = date.getDay();
+    // Use UTC time to ensure consistent timezone calculations across all users
+    const hour = date.getUTCHours();
+    const day = date.getUTCDay();
     const message = commit.commit.message.split('\n')[0]; // First line only
     const author = commit.commit.author.name;
 
