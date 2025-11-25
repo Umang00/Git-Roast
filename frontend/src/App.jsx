@@ -63,34 +63,44 @@ function App() {
       let buffer = '' // Buffer for partial SSE lines
 
       const processLine = (line) => {
-        if (!line.startsWith('data: ')) return
+        // More tolerant parsing - handle variations in whitespace
+        if (!line.startsWith('data:')) return
 
+        // Parse JSON separately from business logic
+        let data
         try {
-          const data = JSON.parse(line.slice(6))
+          // Strip "data:" prefix and trim whitespace
+          const payload = line.slice(5).replace(/^\s*/, '').trim()
+          data = JSON.parse(payload)
+        } catch (err) {
+          console.error('Error parsing SSE JSON:', err)
+          return // Only JSON parse errors are caught here
+        }
 
-          if (data.type === 'stats') {
-            // Initial stats received (don't log to avoid leaking PII)
-          } else if (data.type === 'chunk') {
-            // Streaming text chunk
-            setStreamText(prev => prev + data.text)
-          } else if (data.type === 'complete' || data.type === 'fallback') {
-            // Complete roast data
-            setRoastData(data.data)
-            setShowConfetti(true)
+        // Handle business logic outside try/catch so errors can propagate
+        if (data.type === 'stats') {
+          // Initial stats received (don't log to avoid leaking PII)
+        } else if (data.type === 'chunk') {
+          // Streaming text chunk
+          setStreamText(prev => prev + data.text)
+        } else if (data.type === 'complete' || data.type === 'fallback') {
+          // Complete roast data
+          setRoastData(data.data)
+          setShowConfetti(true)
 
-            // Clear any existing confetti timeout
-            if (confettiTimeoutRef.current) {
-              clearTimeout(confettiTimeoutRef.current)
-            }
-            confettiTimeoutRef.current = setTimeout(() => {
-              setShowConfetti(false)
-              confettiTimeoutRef.current = null
-            }, 5000)
-          } else if (data.type === 'error') {
-            throw new Error(data.error)
+          // Clear any existing confetti timeout
+          if (confettiTimeoutRef.current) {
+            clearTimeout(confettiTimeoutRef.current)
           }
-        } catch (parseError) {
-          console.error('Error parsing SSE data:', parseError)
+          confettiTimeoutRef.current = setTimeout(() => {
+            setShowConfetti(false)
+            confettiTimeoutRef.current = null
+          }, 5000)
+        } else if (data.type === 'error') {
+          // Surface streaming errors to user instead of swallowing them
+          setError(data.error || 'Streaming failed')
+          setStreaming(false)
+          setStreamText('')
         }
       }
 
@@ -294,14 +304,7 @@ Try it: ${websiteUrl}
         logging: false,
         backgroundColor: '#0a0a0f', // Match dark background
         windowWidth: resultsRef.current.scrollWidth,
-        windowHeight: resultsRef.current.scrollHeight,
-        onclone: (clonedDoc) => {
-          // Ensure cloned document has proper styles
-          const clonedElement = clonedDoc.getElementById(resultsRef.current.id) || clonedDoc.querySelector('[ref]')
-          if (clonedElement) {
-            clonedElement.style.transform = 'none'
-          }
-        }
+        windowHeight: resultsRef.current.scrollHeight
       })
 
       // Step 7: Remove animation-disable style
@@ -465,8 +468,8 @@ Try it: ${websiteUrl}
           {/* Developer Credit */}
           {import.meta.env.VITE_DEVELOPER_NAME && (
             <div className="flex items-center justify-center gap-3 text-gray-400">
-              <span className="text-sm">
-                Crafted by <span className="gradient-text font-semibold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
+              <span className="text-lg">
+                Unfortunately built by <span className="gradient-text font-bold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
               </span>
               <div className="flex items-center gap-3">
                 {import.meta.env.VITE_DEVELOPER_LINKEDIN && (
@@ -530,7 +533,7 @@ Try it: ${websiteUrl}
                   type="text"
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && analyzeRepo()}
+                  onKeyDown={(e) => e.key === 'Enter' && analyzeRepo()}
                   placeholder="facebook/react, Umang00, or https://github.com/torvalds/linux"
                   className="w-full px-4 py-3 bg-dark-bg border border-purple-500/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple transition-colors"
                 />
