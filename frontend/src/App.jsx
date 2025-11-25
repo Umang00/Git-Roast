@@ -315,12 +315,11 @@ Try it: ${websiteUrl}
       const link = document.createElement('a')
       link.href = url
 
-      // Generate filename from repo/profile name
-      const filename = roastData.repository?.fullName
-        ? `GitRoast-${roastData.repository.fullName.replace('/', '-')}.pdf`
-        : roastData.repository?.username
-        ? `GitRoast-${roastData.repository.username}.pdf`
-        : 'GitRoast-Report.pdf'
+      // Generate filename from repo/profile name with sanitization
+      const repoName = roastData.repository?.fullName || roastData.repository?.username || 'Report'
+      // Remove problematic characters that can cause issues in filenames
+      const safeRepoName = String(repoName).replace(/[/\\?%*:|"<>]/g, '-')
+      const filename = `GitRoast-${safeRepoName}.pdf`
 
       link.setAttribute('download', filename)
       document.body.appendChild(link)
@@ -632,7 +631,7 @@ Try it: ${websiteUrl}
                   {roastData.grade} {getGradeEmoji(roastData.grade)}
                 </motion.div>
 
-                <p className="text-xl text-gray-300 mb-6">{roastData.gradeDescription}</p>
+                <p className="text-xl text-gray-300 mb-6">{parseMarkdown(roastData.gradeDescription)}</p>
 
                 {/* Social Share Buttons */}
                 <div className="flex flex-wrap gap-3 justify-center">
@@ -857,7 +856,7 @@ Try it: ${websiteUrl}
                       className="flex items-start gap-3 text-gray-300"
                     >
                       <span className="text-green-400 font-bold">•</span>
-                      <span>{suggestion}</span>
+                      <span>{parseMarkdown(suggestion)}</span>
                     </motion.li>
                   ))}
                 </ul>

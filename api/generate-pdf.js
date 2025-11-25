@@ -50,9 +50,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate filename from repo/profile name
+    // Generate filename from repo/profile name with robust sanitization
     const repoName = roastData.repository?.fullName || roastData.repository?.username || 'Report';
-    const filename = `GitRoast-${repoName.replace('/', '-')}.pdf`;
+    // Remove problematic characters that can cause issues in filenames
+    const safeRepoName = String(repoName).replace(/[/\\?%*:|"<>]/g, '-');
+    const filename = `GitRoast-${safeRepoName}.pdf`;
 
     // Set response headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');

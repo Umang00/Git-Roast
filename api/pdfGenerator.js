@@ -34,7 +34,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
-    border: '2px solid #a855f7',
+    borderWidth: 2,
+    borderColor: '#a855f7',
+    borderStyle: 'solid',
   },
   gradeBadge: {
     fontSize: 48,
@@ -54,14 +56,17 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 15,
+    justifyContent: 'space-between',
   },
   statCard: {
     backgroundColor: '#1a1a2e',
     padding: 15,
     borderRadius: 8,
-    border: '1px solid #a855f7',
+    borderWidth: 1,
+    borderColor: '#a855f7',
+    borderStyle: 'solid',
     width: '48%',
+    marginBottom: 10,
   },
   statValue: {
     fontSize: 24,
@@ -92,8 +97,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a2e',
     padding: 15,
     borderRadius: 8,
-    border: '1px solid #ef4444',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderStyle: 'solid',
     marginBottom: 12,
+    // Prevent page breaks inside roast cards
+    breakInside: 'avoid',
   },
   roastHeader: {
     flexDirection: 'row',
@@ -101,29 +110,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   roastEmoji: {
-    fontSize: 24,
-    marginRight: 10,
+    fontSize: 18, // Reduced from 24 to prevent overflow
+    marginRight: 8,
+    width: 24, // Fixed width to prevent overflow
   },
   roastTitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced from 16 to give more space
     fontWeight: 'bold',
     color: '#ef4444',
     flex: 1,
   },
   roastContent: {
-    fontSize: 12,
+    fontSize: 11, // Reduced from 12 for better fit
     color: '#d1d5db',
     lineHeight: 1.5,
   },
   severityDots: {
     flexDirection: 'row',
     marginTop: 8,
-    gap: 4,
   },
   severityDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginRight: 4, // Using margin instead of gap
   },
   severityActive: {
     backgroundColor: '#ef4444',
@@ -136,10 +146,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a2e',
     padding: 15,
     borderRadius: 8,
-    border: '1px solid #10b981',
+    borderWidth: 1,
+    borderColor: '#10b981',
+    borderStyle: 'solid',
+    // Prevent page breaks inside suggestions
+    breakInside: 'avoid',
   },
   suggestionItem: {
-    fontSize: 11,
+    fontSize: 10, // Reduced from 11
     color: '#d1d5db',
     marginBottom: 6,
     paddingLeft: 10,
@@ -161,10 +175,10 @@ const styles = StyleSheet.create({
 export function createRoastPDF(roastData) {
   const { repository, stats, grade, roasts, suggestions } = roastData;
 
-  // Get website URL from environment variable or use default
-  const websiteUrl = process.env.WEBSITE_URL || 'https://gitrosts.vercel.app';
+  // Get website URL from environment variable or use correct default
+  const websiteUrl = process.env.WEBSITE_URL || 'https://git-roasts.vercel.app/';
 
-  // Generate filename-friendly repo name
+  // Generate filename-friendly repo name with proper sanitization
   const repoName = repository?.fullName || repository?.username || 'Unknown';
 
   return React.createElement(
@@ -235,10 +249,10 @@ export function createRoastPDF(roastData) {
             React.createElement(
               View,
               { style: styles.roastHeader },
-              React.createElement(Text, { style: styles.roastEmoji }, roast.emoji),
-              React.createElement(Text, { style: styles.roastTitle }, roast.title)
+              React.createElement(Text, { style: styles.roastEmoji }, roast.emoji || '🔥'),
+              React.createElement(Text, { style: styles.roastTitle }, roast.title || '')
             ),
-            React.createElement(Text, { style: styles.roastContent }, roast.content),
+            React.createElement(Text, { style: styles.roastContent }, roast.content || ''),
             roast.severity ? React.createElement(
               View,
               { style: styles.severityDots },
@@ -269,7 +283,7 @@ export function createRoastPDF(roastData) {
           React.createElement(
             Text,
             { key: index, style: styles.suggestionItem },
-            `• ${suggestion}`
+            `• ${suggestion || ''}`
           )
         )
       ) : null,
