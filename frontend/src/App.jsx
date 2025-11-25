@@ -832,7 +832,7 @@ Try it: ${websiteUrl}
                   value={roastData.stats.lateNightCommits}
                   color="text-purple-400"
                   subtitle={`${roastData.stats.lateNightPercentage}%`}
-                  note="11PM-5AM UTC"
+                  note="Calculated using UTC timezone (11PM-5AM)"
                 />
               </div>
 
@@ -942,28 +942,75 @@ function StatCard({ icon, label, value, color, subtitle, note }) {
 }
 
 // Helper function to parse simple markdown (bold text) in roast content
+/**
+ * Comprehensive inline markdown parser
+ * Handles common markdown syntax: bold, italic, code, etc.
+ * Processes in correct order to avoid conflicts (e.g., ** before *)
+ */
 function parseMarkdown(text) {
-  if (!text) return text;
+  if (!text || typeof text !== 'string') return text;
 
-  // Split by **bold** markers and create React elements
-  const parts = [];
-  const regex = /\*\*(.*?)\*\*/g;
-  let lastIndex = 0;
-  let match;
+  // Process markdown tokens and convert to React elements
+  // We need to handle multiple types of formatting that can nest or overlap
+  let currentIndex = 0;
+  let keyCounter = 0;
 
-  while ((match = regex.exec(text)) !== null) {
-    // Add text before the bold part
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
+  // Regex patterns for different markdown syntax (ordered by specificity)
+  const patterns = [
+    { regex: /\*\*(.*?)\*\*/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+    { regex: /__(.*?)__/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+    { regex: /`([^`]+)`/g, component: (content, key) => <code key={key} className="px-1.5 py-0.5 bg-gray-800 rounded text-sm text-cyan-400 font-mono">{content}</code> },
+    { regex: /\*((?!\s).*?(?<!\s))\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+    { regex: /_((?!\s).*?(?<!\s))_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+  ];
+
+  // Find all matches across all patterns
+  const allMatches = [];
+  patterns.forEach((pattern, patternIndex) => {
+    let match;
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    while ((match = regex.exec(text)) !== null) {
+      allMatches.push({
+        start: match.index,
+        end: regex.lastIndex,
+        content: match[1],
+        component: pattern.component,
+        patternIndex,
+      });
     }
-    // Add bold part
-    parts.push(<strong key={match.index} className="font-bold text-white">{match[1]}</strong>);
-    lastIndex = regex.lastIndex;
-  }
+  });
+
+  // Sort matches by start position, then by pattern priority (earlier patterns win)
+  allMatches.sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return a.patternIndex - b.patternIndex;
+  });
+
+  // Remove overlapping matches (keep first one)
+  const validMatches = [];
+  let lastEnd = 0;
+  allMatches.forEach(match => {
+    if (match.start >= lastEnd) {
+      validMatches.push(match);
+      lastEnd = match.end;
+    }
+  });
+
+  // Build the result with React elements
+  const parts = [];
+  validMatches.forEach(match => {
+    // Add text before this match
+    if (match.start > currentIndex) {
+      parts.push(text.substring(currentIndex, match.start));
+    }
+    // Add the formatted element
+    parts.push(match.component(match.content, `md-${keyCounter++}`));
+    currentIndex = match.end;
+  });
 
   // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
+  if (currentIndex < text.length) {
+    parts.push(text.substring(currentIndex));
   }
 
   return parts.length > 0 ? parts : text;
