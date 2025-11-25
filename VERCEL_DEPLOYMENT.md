@@ -1,22 +1,33 @@
-# 🚀 One-Click Vercel Deployment - GitRoast 2.0
+# 🚀 One-Click Vercel Deployment - GitRoast 3.0
 
-**GitRoast is now 100% Vercel-compatible!** Deploy everything (frontend + backend) with ONE CLICK! 🎉
+**GitRoast is now 100% Vercel-compatible with AI-POWERED ROASTS!** Deploy everything (frontend + backend + AI) with ONE CLICK! 🎉
 
-## 🎯 What's New in GitRoast 2.0
+## 🎯 What's New in GitRoast 3.0
+
+### 🤖 AI-Powered Roasting
+- **Google Gemini AI** - Dynamic, personalized roasts based on actual patterns!
+- **Real-time Streaming** - Watch roasts being generated word-by-word
+- **Brutally Savage** - Gordon Ramsay-level roasts with creative metaphors
+- **Smart Fallback** - Uses template roasts if AI unavailable
+- **FREE Gemini API** - Google provides free API tier
 
 ### ⚡ Complete Vercel Integration
 - **Serverless API** - No separate backend needed!
-- **GitHub API Integration** - Analyze ANY public GitHub repository
+- **GitHub API Integration** - Analyze ANY public GitHub repository or profile
 - **One-Click Deploy** - Literally just click a button
-- **Zero Configuration** - Works out of the box
+- **Zero Configuration** - Works out of the box (Gemini API key optional but recommended)
 - **Completely FREE** - Generous Vercel free tier
 
-### 🌟 New Features
-- ✅ Analyze any public GitHub repo by URL
+### 🌟 Features
+- ✅ AI-powered roasts with Google Gemini
+- ✅ Streaming responses with progressive reveal
+- ✅ Social sharing (Twitter, LinkedIn, clipboard)
+- ✅ Profile-wide analysis (entire GitHub profiles)
+- ✅ Comprehensive analysis (README, commits, metadata, docs)
+- ✅ Analyze any public GitHub repo by URL or username
 - ✅ Support for `owner/repo` shorthand format
 - ✅ Serverless functions (no backend hosting needed)
 - ✅ Higher rate limits with optional GitHub token
-- ✅ Faster deployment (no multi-service setup)
 - ✅ Better viral potential (users can roast ANY repo!)
 
 ---
@@ -29,15 +40,22 @@
 
    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR-USERNAME/gitroast)
 
-2. **Configure (Optional):**
-   - Add `GITHUB_TOKEN` for higher rate limits (optional)
-   - Create token at: https://github.com/settings/tokens
+2. **Configure Environment Variables:**
+
+   **REQUIRED for AI Roasts:**
+   - Add `GEMINI_API_KEY` - Get FREE key at: `https://aistudio.google.com/app/apikey`
+   - Click "Create API Key" → Copy the key
+   - Add to Vercel environment variables
+
+   **OPTIONAL for Higher Rate Limits:**
+   - Add `GITHUB_TOKEN` for 5000 req/hr (vs 60 without)
+   - Create token at: `https://github.com/settings/tokens`
    - No special permissions needed for public repos
 
 3. **Deploy!**
    - Click "Deploy"
    - Wait 2-3 minutes
-   - Your app is LIVE! 🎉
+   - Your AI-powered roaster is LIVE! 🎉
 
 ### Method 2: Via Vercel Dashboard
 
@@ -80,7 +98,7 @@ vercel --prod
 
 ---
 
-## 🎮 How to Use GitRoast 2.0
+## 🎮 How to Use GitRoast 3.0
 
 ### Analyze ANY GitHub Repository
 
@@ -106,9 +124,36 @@ microsoft/vscode
 
 ---
 
-## ⚙️ Configuration (Optional)
+## ⚙️ Configuration
 
-### GitHub Token for Higher Rate Limits
+### Gemini API Key for AI-Powered Roasts (RECOMMENDED)
+
+**Without Gemini API Key:**
+- Falls back to template-based roasts
+- Still funny, but less personalized
+- Free, no setup needed
+
+**With Gemini API Key:**
+- AI-generated, dynamic roasts
+- References specific stats and patterns
+- Brutally savage and creative
+- FREE - Google provides generous free tier
+
+**How to Add:**
+
+1. **Get FREE Gemini API Key**
+   - Go to: `https://aistudio.google.com/app/apikey`
+   - Sign in with Google account
+   - Click "Create API Key"
+   - Copy the key
+
+2. **Add to Vercel**
+   - Go to your project on Vercel
+   - Settings → Environment Variables
+   - Add: `GEMINI_API_KEY` = `your_api_key_here`
+   - Redeploy (or it auto-deploys)
+
+### GitHub Token for Higher Rate Limits (Optional)
 
 **Without Token:**
 - 60 requests per hour (GitHub API limit)
@@ -179,7 +224,7 @@ Health check
 {
   "status": "ok",
   "message": "GitRoast API is running! 🔥",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "mode": "serverless"
 }
 ```
@@ -239,7 +284,7 @@ npm run dev
 
 ---
 
-## 📈 Going Viral with GitRoast 2.0
+## 📈 Going Viral with GitRoast 3.0
 
 ### Viral Opportunities
 
@@ -392,7 +437,7 @@ After deployment:
 
 ## 🚀 What's Next?
 
-Ideas for GitRoast 3.0:
+Ideas for GitRoast 4.0:
 - [ ] Private repository support (OAuth)
 - [ ] Team/organization analysis
 - [ ] Historical trend tracking
@@ -401,12 +446,14 @@ Ideas for GitRoast 3.0:
 - [ ] Integration with GitHub App
 - [ ] Real-time commit analysis
 - [ ] Slack/Discord bot integration
+- [ ] Code quality scoring
+- [ ] Multi-language support for roasts
 
 ---
 
 ## 🎊 You're Ready!
 
-**Deploy GitRoast 2.0 in ONE CLICK and go VIRAL! 🔥**
+**Deploy GitRoast 3.0 in ONE CLICK and go VIRAL! 🔥**
 
 Questions? Check the troubleshooting section or create an issue!
 

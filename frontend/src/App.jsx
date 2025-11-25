@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
-import { Flame, Github, Share2, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle } from 'lucide-react'
+import { Flame, Github, Trophy, Clock, GitBranch, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
 import axios from 'axios'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { Analytics } from '@vercel/analytics/react'
 import './App.css'
 
 // API URL configuration - uses environment variable or falls back to relative path
@@ -11,46 +14,419 @@ const API_URL = import.meta.env.VITE_API_URL || '/api'
 function App() {
   const [repoUrl, setRepoUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [streaming, setStreaming] = useState(false)
+  const [streamText, setStreamText] = useState('')
   const [roastData, setRoastData] = useState(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [linkedInCopied, setLinkedInCopied] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
+
+  // Refs to track timeouts for cleanup
+  const linkedInTimeoutRef = useRef(null)
+  const confettiTimeoutRef = useRef(null)
+  const resultsRef = useRef(null)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
-      setError('Please enter a GitHub repository URL!')
+      setError('Please enter a GitHub repository URL or username!')
       return
     }
 
     setLoading(true)
+    setStreaming(true)
     setError('')
     setRoastData(null)
+    setStreamText('')
 
     try {
-      const response = await axios.post(`${API_URL}/roast`, { repoUrl })
-      setRoastData(response.data)
-      setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 5000)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to analyze repository. Make sure the path is correct!')
+      // Try streaming endpoint first
+      const response = await fetch(`${API_URL}/roast-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ repoUrl }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Streaming failed, falling back to regular endpoint')
+      }
+
+      if (!response.body) {
+        throw new Error('Streaming not supported in this environment')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = '' // Buffer for partial SSE lines
+
+      const processLine = (line) => {
+        // More tolerant parsing - handle variations in whitespace
+        if (!line.startsWith('data:')) return
+
+        // Parse JSON separately from business logic
+        let data
+        try {
+          // Strip "data:" prefix and trim whitespace
+          const payload = line.slice(5).replace(/^\s*/, '').trim()
+          data = JSON.parse(payload)
+        } catch (err) {
+          console.error('Error parsing SSE JSON:', err)
+          return // Only JSON parse errors are caught here
+        }
+
+        // Handle business logic outside try/catch so errors can propagate
+        if (data.type === 'stats') {
+          // Initial stats received (don't log to avoid leaking PII)
+        } else if (data.type === 'chunk') {
+          // Streaming text chunk
+          setStreamText(prev => prev + data.text)
+        } else if (data.type === 'complete' || data.type === 'fallback') {
+          // Complete roast data
+          setRoastData(data.data)
+          setShowConfetti(true)
+
+          // Clear any existing confetti timeout
+          if (confettiTimeoutRef.current) {
+            clearTimeout(confettiTimeoutRef.current)
+          }
+          confettiTimeoutRef.current = setTimeout(() => {
+            setShowConfetti(false)
+            confettiTimeoutRef.current = null
+          }, 5000)
+        } else if (data.type === 'error') {
+          // Surface streaming errors to user instead of swallowing them
+          setError(data.error || 'Streaming failed')
+          setStreaming(false)
+          setStreamText('')
+        }
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) {
+          // Process any remaining buffered data
+          if (buffer.trim()) {
+            buffer.split('\n').forEach(processLine)
+          }
+          break
+        }
+
+        // Decode chunk and add to buffer (stream: true preserves partial UTF-8)
+        buffer += decoder.decode(value, { stream: true })
+
+        // Split on newlines and process complete lines
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+        lines.forEach(processLine)
+      }
+    } catch (streamError) {
+      console.warn('Streaming failed, using regular endpoint:', streamError)
+
+      // Fallback to regular non-streaming endpoint
+      try {
+        const response = await axios.post(`${API_URL}/roast`, { repoUrl })
+        setRoastData(response.data)
+        setShowConfetti(true)
+
+        // Clear any existing confetti timeout
+        if (confettiTimeoutRef.current) {
+          clearTimeout(confettiTimeoutRef.current)
+        }
+        confettiTimeoutRef.current = setTimeout(() => {
+          setShowConfetti(false)
+          confettiTimeoutRef.current = null
+        }, 5000)
+      } catch (err) {
+        // Ensure error is always a string, not an object
+        const errorMessage = err.response?.data?.error
+          || err.message
+          || 'Failed to analyze. Make sure the username/repo is correct!'
+        setError(String(errorMessage))
+      }
     } finally {
       setLoading(false)
+      setStreaming(false)
+      setStreamText('')
     }
   }
 
-  const shareResults = () => {
-    const repoInfo = roastData?.repository ? ` (${roastData.repository.fullName})` : ''
-    const text = `I just got roasted by GitRoast! 🔥${repoInfo}\n\nMy Developer Grade: ${roastData?.grade}\n\nTry it yourself at GitRoast!`
+  // Generate viral social message using the most savage roast
+  const generateViralMessage = () => {
+    if (!roastData) return ''
 
-    if (navigator.share) {
-      navigator.share({
-        title: 'GitRoast - My Coding Report Card',
-        text: text,
+    const isProfile = roastData.analysisType === 'profile'
+    const target = roastData.repository
+      ? (isProfile ? `@${roastData.repository.username}` : roastData.repository.fullName)
+      : 'my code'
+
+    // Get website URL from env or use current location
+    const websiteUrl = import.meta.env.VITE_WEBSITE_URL || window.location.origin
+
+    // Twitter character limit
+    const TWITTER_LIMIT = 280
+
+    // Find the most savage roast (highest severity)
+    const roasts = Array.isArray(roastData.roasts) ? roastData.roasts : []
+    const savageRoast = roasts
+      .filter(r => r.severity >= 4)
+      .sort((a, b) => b.severity - a.severity)[0]
+
+    if (savageRoast) {
+      // Build template with variable content
+      const template = `🔥 Holy shit, I just got DESTROYED by AI!
+
+${target} - Grade: ${roastData.grade}
+Roast: "ROAST_PLACEHOLDER..."
+
+I can't believe this is real 💀
+
+Get roasted: ${websiteUrl}
+#GitRoast`
+
+      // Calculate how much space we have for the roast snippet
+      const templateLength = template.replace('ROAST_PLACEHOLDER', '').length
+      const availableForRoast = TWITTER_LIMIT - templateLength
+
+      // Trim roast to fit within character limit
+      let roastSnippet = savageRoast.content
+      if (availableForRoast > 0) {
+        roastSnippet = roastSnippet.substring(0, availableForRoast)
+        // Try to end at a word boundary for cleaner truncation
+        const lastSpace = roastSnippet.lastIndexOf(' ')
+        if (lastSpace > availableForRoast * 0.8) {
+          roastSnippet = roastSnippet.substring(0, lastSpace)
+        }
+      } else {
+        // Template itself is too long, use minimal roast
+        roastSnippet = ''
+      }
+
+      return template.replace('ROAST_PLACEHOLDER', roastSnippet)
+    }
+
+    // Fallback if no savage roasts
+    const fallbackTemplate = `🔥 An AI just brutally roasted ${target}!
+
+Grade: ${roastData.grade}
+
+This is savage AF 💀
+
+Try it: ${websiteUrl}
+#GitRoast`
+
+    // Ensure fallback also fits within limit
+    if (fallbackTemplate.length > TWITTER_LIMIT) {
+      // Truncate target if needed
+      const overflow = fallbackTemplate.length - TWITTER_LIMIT
+      const maxTargetLength = Math.max(10, target.length - overflow - 3) // Reserve 3 for "..."
+      const truncatedTarget = target.length > maxTargetLength
+        ? target.substring(0, maxTargetLength) + '...'
+        : target
+
+      return `🔥 An AI just brutally roasted ${truncatedTarget}!
+
+Grade: ${roastData.grade}
+
+This is savage AF 💀
+
+Try it: ${websiteUrl}
+#GitRoast`
+    }
+
+    return fallbackTemplate
+  }
+
+  const shareToTwitter = () => {
+    const text = generateViralMessage()
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+    window.open(url, '_blank')
+  }
+
+  const shareToLinkedIn = async () => {
+    // LinkedIn doesn't support pre-filled text, so copy to clipboard + show toast
+    const text = generateViralMessage()
+
+    // Clear any existing timeout
+    if (linkedInTimeoutRef.current) {
+      clearTimeout(linkedInTimeoutRef.current)
+    }
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setLinkedInCopied(true)
+
+      // Open LinkedIn post page after short delay
+      linkedInTimeoutRef.current = setTimeout(() => {
+        window.open('https://www.linkedin.com/feed/', '_blank')
+        linkedInTimeoutRef.current = null
+      }, 500)
+    } catch (err) {
+      console.error('Copy failed:', err)
+      // Fallback: just open LinkedIn immediately
+      window.open('https://www.linkedin.com/feed/', '_blank')
+    }
+  }
+
+  const copyToClipboard = async () => {
+    const text = generateViralMessage()
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+    } catch (err) {
+      console.error('Copy failed:', err)
+
+      // Fallback for non-HTTPS or denied permissions
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        setCopied(true)
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr)
+        setError('Failed to copy to clipboard')
+      }
+    }
+  }
+
+  const downloadAsPDF = async () => {
+    if (!resultsRef.current || downloadingPDF) return
+
+    try {
+      setDownloadingPDF(true)
+
+      // Step 1: Disable animations and transitions
+      const style = document.createElement('style')
+      style.id = 'pdf-disable-animations'
+      style.innerHTML = `
+        * {
+          animation: none !important;
+          animation-duration: 0s !important;
+          transition: none !important;
+          transition-duration: 0s !important;
+        }
+      `
+      document.head.appendChild(style)
+
+      // Step 2: Scroll to top to ensure full content is visible
+      window.scrollTo(0, 0)
+
+      // Step 3: Wait for fonts to be ready
+      await document.fonts.ready
+
+      // Step 4: Wait for all images to load
+      const images = Array.from(resultsRef.current.querySelectorAll('img'))
+      await Promise.all(
+        images.map(img =>
+          img.complete ? Promise.resolve() :
+          new Promise(resolve => {
+            img.onload = resolve
+            img.onerror = resolve
+          })
+        )
+      )
+
+      // Step 5: Small delay to ensure everything is rendered
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Step 6: Capture with improved settings
+      const canvas = await html2canvas(resultsRef.current, {
+        scale: Math.min(2, window.devicePixelRatio || 1), // Adaptive quality
+        useCORS: true, // Allow cross-origin images
+        allowTaint: false,
+        logging: false,
+        backgroundColor: '#0a0a0f', // Match dark background
+        windowWidth: resultsRef.current.scrollWidth,
+        windowHeight: resultsRef.current.scrollHeight
       })
-    } else {
-      navigator.clipboard.writeText(text)
-      alert('Copied to clipboard! Share it on social media!')
+
+      // Step 7: Remove animation-disable style
+      const styleElement = document.getElementById('pdf-disable-animations')
+      if (styleElement) {
+        document.head.removeChild(styleElement)
+      }
+
+      // Calculate PDF dimensions
+      const imgWidth = 210 // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const imgData = canvas.toDataURL('image/png', 0.95) // Slightly compressed for smaller file size
+
+      // Handle multi-page PDFs for long content
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= 297 // A4 height in mm
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= 297
+      }
+
+      // Generate filename from repo/profile name
+      const filename = roastData.repository?.fullName
+        ? `GitRoast-${roastData.repository.fullName.replace('/', '-')}.pdf`
+        : roastData.repository?.username
+        ? `GitRoast-${roastData.repository.username}.pdf`
+        : 'GitRoast-Report.pdf'
+
+      // Download PDF
+      pdf.save(filename)
+
+      setDownloadingPDF(false)
+    } catch (error) {
+      console.error('Failed to generate PDF:', error)
+      setError('Failed to generate PDF. Please try again.')
+      setDownloadingPDF(false)
+
+      // Cleanup: remove animation-disable style if error occurred
+      const styleElement = document.getElementById('pdf-disable-animations')
+      if (styleElement) {
+        document.head.removeChild(styleElement)
+      }
     }
   }
+
+  // Cleanup timer for copied state
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  // Cleanup timer for LinkedIn copied state
+  useEffect(() => {
+    if (!linkedInCopied) return
+    const timer = setTimeout(() => setLinkedInCopied(false), 3000)
+    return () => clearTimeout(timer)
+  }, [linkedInCopied])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (linkedInTimeoutRef.current) {
+        clearTimeout(linkedInTimeoutRef.current)
+      }
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const getGradeColor = (grade) => {
     const colors = {
@@ -131,9 +507,54 @@ function App() {
           <p className="text-2xl text-gray-300 mb-2">
             Get Your Code Brutally Roasted by AI 🔥
           </p>
-          <p className="text-lg text-gray-400">
-            Discover your coding sins, share your developer report card, and go viral!
-          </p>
+
+          {/* Developer Credit */}
+          {import.meta.env.VITE_DEVELOPER_NAME && (
+            <div className="flex items-center justify-center gap-3 text-gray-400">
+              <span className="text-lg">
+                Unfortunately built by <span className="gradient-text font-bold">{import.meta.env.VITE_DEVELOPER_NAME}</span>
+              </span>
+              <div className="flex items-center gap-3">
+                {import.meta.env.VITE_DEVELOPER_LINKEDIN && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_LINKEDIN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-blue-400 transition-colors"
+                    title="LinkedIn Profile"
+                  >
+                    <Linkedin className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_WEBSITE && (
+                  <motion.a
+                    href={import.meta.env.VITE_DEVELOPER_WEBSITE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-purple-400 transition-colors"
+                    title="Portfolio Website"
+                  >
+                    <Globe className="w-5 h-5" />
+                  </motion.a>
+                )}
+                {import.meta.env.VITE_DEVELOPER_EMAIL && (
+                  <motion.a
+                    href={`mailto:${import.meta.env.VITE_DEVELOPER_EMAIL}`}
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-400 hover:text-green-400 transition-colors"
+                    title="Email"
+                  >
+                    <Mail className="w-5 h-5" />
+                  </motion.a>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Input Section */}
@@ -146,7 +567,7 @@ function App() {
           <div className="bg-dark-card rounded-2xl p-8 card-glow border border-purple-500/30">
             <div className="flex items-center gap-2 mb-4">
               <Github className="w-6 h-6 text-neon-purple" />
-              <h2 className="text-2xl font-bold">Analyze Any GitHub Repository</h2>
+              <h2 className="text-2xl font-bold">Analyze Public GitHub Repos or Profiles</h2>
             </div>
 
             <div className="space-y-4">
@@ -155,12 +576,12 @@ function App() {
                   type="text"
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && analyzeRepo()}
-                  placeholder="https://github.com/facebook/react or facebook/react"
+                  onKeyDown={(e) => e.key === 'Enter' && analyzeRepo()}
+                  placeholder="facebook/react, Umang00, or https://github.com/torvalds/linux"
                   className="w-full px-4 py-3 bg-dark-bg border border-purple-500/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple transition-colors"
                 />
                 <p className="text-sm text-gray-400 mt-2">
-                  💡 Paste any public GitHub repository URL or use owner/repo format
+                  💡 Enter a username for profile-wide analysis or owner/repo for single repository
                 </p>
               </div>
 
@@ -194,7 +615,7 @@ function App() {
                     >
                       <Zap className="w-5 h-5" />
                     </motion.div>
-                    Analyzing Your Coding Sins...
+                    {streaming ? 'AI is Roasting Your Code...' : 'Analyzing Your Coding Sins...'}
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
@@ -207,10 +628,42 @@ function App() {
           </div>
         </motion.div>
 
+        {/* Streaming Text Display */}
+        {streaming && streamText && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto mb-6"
+          >
+            <div className="bg-dark-card rounded-2xl p-6 card-glow border border-neon-purple/50">
+              <div className="flex items-center gap-2 mb-3">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                >
+                  <Zap className="w-5 h-5 text-neon-purple" />
+                </motion.div>
+                <h3 className="text-lg font-bold text-neon-purple">AI is cooking up your roast...</h3>
+              </div>
+              <div className="text-gray-300 font-mono text-sm whitespace-pre-wrap break-words">
+                {streamText}
+                <motion.span
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="text-neon-purple"
+                >
+                  ▌
+                </motion.span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Results Section */}
         <AnimatePresence>
           {roastData && (
             <motion.div
+              ref={resultsRef}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -239,19 +692,134 @@ function App() {
 
                 <p className="text-xl text-gray-300 mb-6">{roastData.gradeDescription}</p>
 
-                <motion.button
-                  onClick={shareResults}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 rounded-lg font-bold flex items-center gap-2 mx-auto hover:shadow-lg transition-shadow"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Share2 className="w-5 h-5" />
-                  Share Your Grade
-                </motion.button>
+                {/* Social Share Buttons */}
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <motion.button
+                    onClick={shareToTwitter}
+                    className="bg-gradient-to-r from-blue-400 to-blue-600 px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-shadow"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Twitter className="w-5 h-5" />
+                    Share on Twitter
+                  </motion.button>
+
+                  <motion.button
+                    onClick={shareToLinkedIn}
+                    className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-shadow"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Linkedin className="w-5 h-5" />
+                    Share on LinkedIn
+                  </motion.button>
+
+                  <motion.button
+                    onClick={copyToClipboard}
+                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-all ${
+                      copied
+                        ? 'bg-gradient-to-r from-green-500 to-green-700'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-600'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" />
+                        Copy to Clipboard
+                      </>
+                    )}
+                  </motion.button>
+
+                  <motion.button
+                    onClick={downloadAsPDF}
+                    disabled={downloadingPDF}
+                    className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:shadow-lg transition-all ${
+                      downloadingPDF
+                        ? 'bg-gradient-to-r from-gray-600 to-gray-800 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-orange-500 to-red-600'
+                    }`}
+                    whileHover={{ scale: downloadingPDF ? 1 : 1.05 }}
+                    whileTap={{ scale: downloadingPDF ? 1 : 0.95 }}
+                  >
+                    <Download className="w-5 h-5" />
+                    {downloadingPDF ? 'Generating PDF...' : 'Download Full Roast'}
+                  </motion.button>
+                </div>
+
+                {/* LinkedIn Toast Notification */}
+                <AnimatePresence>
+                  {linkedInCopied && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-3 bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-center"
+                    >
+                      <p className="text-sm text-blue-300">
+                        ✅ Text copied! Paste it into LinkedIn 📝
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
+              {/* Profile Info (if analyzing a profile) */}
+              {roastData.analysisType === 'profile' && roastData.repository && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-dark-card rounded-2xl p-6 card-glow border border-blue-500/30"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <Github className="w-8 h-8 text-blue-400" />
+                    <div>
+                      <h3 className="text-2xl font-bold">Profile Analysis: @{roastData.repository.username}</h3>
+                      <p className="text-gray-400">Analyzed {roastData.repository.analyzedRepos} of {roastData.repository.totalRepos} repositories</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-blue-400">{roastData.repository.publicRepos}</div>
+                      <div className="text-sm text-gray-400">Public Repos</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-green-400">{roastData.repository.followers}</div>
+                      <div className="text-sm text-gray-400">Followers</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-purple-400">{roastData.repository.following}</div>
+                      <div className="text-sm text-gray-400">Following</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-3">
+                      <div className="text-2xl font-bold text-yellow-400">{roastData.stats.totalCommits}</div>
+                      <div className="text-sm text-gray-400">Total Commits</div>
+                    </div>
+                  </div>
+                  {roastData.repository.topRepos && roastData.repository.topRepos.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-bold text-gray-400 mb-2">Most Active Repositories:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {roastData.repository.topRepos.map((repo, idx) => (
+                          <span key={idx} className="bg-dark-bg px-3 py-1 rounded-full text-sm">
+                            {repo.name} <span className="text-gray-500">({repo.commits} commits)</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               {/* Stats Grid */}
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <StatCard
                   icon={<GitBranch className="w-8 h-8" />}
                   label="Total Commits"
@@ -264,13 +832,7 @@ function App() {
                   value={roastData.stats.lateNightCommits}
                   color="text-purple-400"
                   subtitle={`${roastData.stats.lateNightPercentage}%`}
-                />
-                <StatCard
-                  icon={<Code2 className="w-8 h-8" />}
-                  label="Avg Commit Size"
-                  value={roastData.stats.avgCommitSize}
-                  color="text-pink-400"
-                  subtitle="lines"
+                  note="Calculated using UTC timezone (11PM-5AM)"
                 />
               </div>
 
@@ -280,7 +842,7 @@ function App() {
                   The Roasts 🔥
                 </h3>
 
-                {roastData.roasts.map((roast, index) => (
+                {(Array.isArray(roastData.roasts) ? roastData.roasts : []).map((roast, index) => (
                   <RoastCard key={index} roast={roast} index={index} />
                 ))}
               </div>
@@ -304,6 +866,7 @@ function App() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.7 + index * 0.1 }}
+                        whileHover={{ scale: 1.02 }}
                         className="bg-dark-bg rounded-lg p-4 border border-yellow-500/30"
                       >
                         <div className="text-3xl mb-2">{achievement.emoji}</div>
@@ -327,7 +890,7 @@ function App() {
                   Ways to Improve (Or Not)
                 </h3>
                 <ul className="space-y-3">
-                  {roastData.suggestions.map((suggestion, index) => (
+                  {(Array.isArray(roastData.suggestions) ? roastData.suggestions : []).map((suggestion, index) => (
                     <motion.li
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
@@ -350,17 +913,20 @@ function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="text-center mt-16 text-gray-500"
+          className="text-center mt-16 pb-8"
         >
-          <p className="mb-2">Made with 🔥 by AI that loves roasting code</p>
-          <p className="text-sm">Share your roast and make both of us go viral! 🚀</p>
+          <p className="mb-2 text-gray-500">Made with 🔥 and absolutely no mercy</p>
+          <p className="text-sm text-gray-500">Share your savage roast and go viral! 🚀</p>
         </motion.div>
       </div>
+
+      {/* Vercel Analytics */}
+      <Analytics />
     </div>
   )
 }
 
-function StatCard({ icon, label, value, color, subtitle }) {
+function StatCard({ icon, label, value, color, subtitle, note }) {
   return (
     <motion.div
       whileHover={{ scale: 1.05 }}
@@ -370,8 +936,84 @@ function StatCard({ icon, label, value, color, subtitle }) {
       <div className="text-3xl font-bold mb-1">{value}</div>
       <div className="text-gray-400">{label}</div>
       {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
+      {note && <div className="text-xs text-gray-600 mt-1">{note}</div>}
     </motion.div>
   )
+}
+
+// Helper function to parse simple markdown (bold text) in roast content
+/**
+ * Comprehensive inline markdown parser
+ * Handles common markdown syntax: bold, italic, code, etc.
+ * Processes in correct order to avoid conflicts (e.g., ** before *)
+ */
+function parseMarkdown(text) {
+  if (!text || typeof text !== 'string') return text;
+
+  // Process markdown tokens and convert to React elements
+  // We need to handle multiple types of formatting that can nest or overlap
+  let currentIndex = 0;
+  let keyCounter = 0;
+
+  // Regex patterns for different markdown syntax (ordered by specificity)
+  const patterns = [
+    { regex: /\*\*(.*?)\*\*/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+    { regex: /__(.*?)__/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+    { regex: /`([^`]+)`/g, component: (content, key) => <code key={key} className="px-1.5 py-0.5 bg-gray-800 rounded text-sm text-cyan-400 font-mono">{content}</code> },
+    { regex: /\*((?!\s).*?(?<!\s))\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+    { regex: /_((?!\s).*?(?<!\s))_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+  ];
+
+  // Find all matches across all patterns
+  const allMatches = [];
+  patterns.forEach((pattern, patternIndex) => {
+    let match;
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    while ((match = regex.exec(text)) !== null) {
+      allMatches.push({
+        start: match.index,
+        end: regex.lastIndex,
+        content: match[1],
+        component: pattern.component,
+        patternIndex,
+      });
+    }
+  });
+
+  // Sort matches by start position, then by pattern priority (earlier patterns win)
+  allMatches.sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return a.patternIndex - b.patternIndex;
+  });
+
+  // Remove overlapping matches (keep first one)
+  const validMatches = [];
+  let lastEnd = 0;
+  allMatches.forEach(match => {
+    if (match.start >= lastEnd) {
+      validMatches.push(match);
+      lastEnd = match.end;
+    }
+  });
+
+  // Build the result with React elements
+  const parts = [];
+  validMatches.forEach(match => {
+    // Add text before this match
+    if (match.start > currentIndex) {
+      parts.push(text.substring(currentIndex, match.start));
+    }
+    // Add the formatted element
+    parts.push(match.component(match.content, `md-${keyCounter++}`));
+    currentIndex = match.end;
+  });
+
+  // Add remaining text
+  if (currentIndex < text.length) {
+    parts.push(text.substring(currentIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
 }
 
 function RoastCard({ roast, index }) {
@@ -380,6 +1022,7 @@ function RoastCard({ roast, index }) {
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3 + index * 0.1 }}
+      whileHover={{ scale: 1.02 }}
       className="bg-dark-card rounded-xl p-6 card-glow border border-red-500/30"
     >
       <div className="flex items-start gap-4">
@@ -392,7 +1035,7 @@ function RoastCard({ roast, index }) {
         </motion.div>
         <div className="flex-1">
           <h4 className="text-xl font-bold text-red-400 mb-2">{roast.title}</h4>
-          <p className="text-gray-300 leading-relaxed">{roast.content}</p>
+          <p className="text-gray-300 leading-relaxed">{parseMarkdown(roast.content)}</p>
           {roast.severity && (
             <div className="mt-3 flex gap-1">
               {[...Array(5)].map((_, i) => (

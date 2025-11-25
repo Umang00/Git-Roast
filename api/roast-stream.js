@@ -1,11 +1,10 @@
 import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
-import { generateAIRoast } from './aiRoastGenerator.js';
+import { generateStreamingAIRoast } from './aiRoastGenerator.js';
 import { generateRoast } from './roastEngine.js';
 
 /**
- * Vercel Serverless Function for GitRoast
- * Analyzes GitHub repositories or user profiles and generates AI-powered roasts
- * Falls back to template-based roasts if AI fails
+ * Vercel Serverless Function for Streaming GitRoast
+ * Streams AI-generated roasts with progressive reveal for better UX
  */
 export default async function handler(req, res) {
   // Enable CORS
@@ -51,18 +50,45 @@ export default async function handler(req, res) {
       gitStats = await analyzeGitHubRepo(`${inputType.owner}/${inputType.repo}`, githubToken);
     }
 
-    // Add analysis type to stats
+    // Add analysis type
     gitStats.analysisType = inputType.type;
 
-    // Try AI-powered roasts first, fall back to templates if it fails
+    // Set up Server-Sent Events (SSE) for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send initial stats
+    res.write(`data: ${JSON.stringify({ type: 'stats', data: gitStats })}\n\n`);
+
+    // Generate streaming AI roast
     let roastData;
+
     try {
-      console.log('Attempting AI-powered roast generation...');
-      roastData = await generateAIRoast(gitStats);
-      console.log('AI roast generated successfully');
+      roastData = await generateStreamingAIRoast(gitStats, (chunk) => {
+        // Send chunk to client
+        res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunk })}\n\n`);
+      });
+
+      // Add repository/profile info to response
+      roastData.repository = gitStats.repositoryInfo;
+      roastData.analysisType = inputType.type;
+      roastData.stats = {
+        totalCommits: gitStats.totalCommits,
+        lateNightCommits: gitStats.lateNightCommits,
+        lateNightPercentage: gitStats.lateNightPercentage,
+      };
+
+      // Send final complete data
+      res.write(`data: ${JSON.stringify({ type: 'complete', data: roastData })}\n\n`);
+      res.end();
     } catch (aiError) {
-      console.warn('AI roast generation failed, falling back to templates:', aiError.message);
+      console.error('AI generation failed, falling back to template roasts:', aiError);
+
+      // Fallback to template-based roasts if AI fails
       roastData = generateRoast(gitStats);
+      roastData.repository = gitStats.repositoryInfo;
+      roastData.analysisType = inputType.type;
 
       // Add fun fallback message as a roast
       roastData.roasts.unshift({
@@ -71,23 +97,27 @@ export default async function handler(req, res) {
         content: "Our LLM is out sick today, but who needs it? I've learned enough from roasting thousands of repos that I can handle this without AI. Your code is still getting destroyed, just the old-fashioned way.",
         severity: 1
       });
+
+      res.write(`data: ${JSON.stringify({ type: 'fallback', data: roastData })}\n\n`);
+      res.end();
     }
-
-    // Add repository/profile info and stats to response
-    roastData.repository = gitStats.repositoryInfo;
-    roastData.analysisType = inputType.type;
-    roastData.stats = {
-      totalCommits: gitStats.totalCommits,
-      lateNightCommits: gitStats.lateNightCommits,
-      lateNightPercentage: gitStats.lateNightPercentage,
-    };
-
-    res.status(200).json(roastData);
   } catch (error) {
     console.error('Error analyzing:', error);
 
-    res.status(500).json({
+    const errorData = {
+      type: 'error',
       error: error.message || 'Failed to analyze GitHub data'
-    });
+    };
+
+    // Try to send error as SSE if headers not sent
+    try {
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'text/event-stream');
+      }
+      res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+      res.end();
+    } catch (writeError) {
+      console.error('Failed to send error response:', writeError);
+    }
   }
 }

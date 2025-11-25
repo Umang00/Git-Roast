@@ -15,15 +15,24 @@
 
 ---
 
-## 🆕 What's New in GitRoast 2.0
+## 🆕 What's New in GitRoast 3.0
 
-### ⚡ **Now 100% Vercel-Compatible!**
+### 🤖 **AI-POWERED ROASTS with Google Gemini!**
 
-- ✨ **Analyze ANY GitHub Repository** - Just paste a GitHub URL!
+- 🤖 **Google Gemini AI Integration** - Dynamic, personalized roasts based on YOUR actual code patterns!
+- ⚡ **Real-time Streaming Responses** - Watch your roast being generated live, word by word!
+- 📱 **Enhanced Social Sharing** - Share to Twitter, LinkedIn, or copy to clipboard with one click!
+- 🎯 **Profile-Wide Analysis** - Roast entire GitHub profiles, not just single repos!
+- 📊 **Comprehensive Analysis** - README quality, commit patterns, documentation, repo metadata!
+- 💀 **BRUTALLY HONEST** - Gordon Ramsay-level savage roasts that reference your actual stats!
+
+### ⚡ **Also: 100% Vercel-Compatible!**
+
+- ✨ **Analyze ANY GitHub Repository** - Just paste a GitHub URL or username!
 - 🚀 **One-Click Deployment** - Deploy everything to Vercel in 5 minutes
 - ⚡ **Serverless Functions** - No separate backend needed
 - 🌍 **Roast Famous Repos** - Try `torvalds/linux`, `facebook/react`, `microsoft/vscode`
-- 📈 **Higher Viral Potential** - Users can roast ANY public repository!
+- 📈 **Higher Viral Potential** - AI-powered roasts are WAY more shareable!
 
 **Deploy Now:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - One-click setup guide!
 
@@ -98,8 +107,7 @@ Get graded on your git habits:
 
 ### Prerequisites
 - Node.js 18+ installed
-- Git installed
-- A git repository to analyze (the dirtier the better 😈)
+- GitHub account (for optional higher rate limits)
 
 ### Installation
 
@@ -108,27 +116,65 @@ Get graded on your git habits:
 git clone <your-repo-url>
 cd gitroast
 
-# Install dependencies for all packages
+# Install dependencies
 npm run install:all
 
-# Start the development servers (frontend + backend)
+# Start development
 npm run dev
 ```
 
-The app will open at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:3001
+The app opens at **`http://localhost:3000`**. API functions work automatically when deployed to Vercel!
+
+### Required: Gemini API Key for AI-Powered Roasts
+
+```bash
+# Create .env file in root directory
+echo "GEMINI_API_KEY=your_gemini_api_key_here" >> .env
+
+# Get a FREE API key at: https://aistudio.google.com/app/apikey
+# Required for AI-powered roasts (falls back to templates without it)
+```
+
+### Optional: GitHub Token for Higher Rate Limits
+
+```bash
+# Add to .env file
+echo "GITHUB_TOKEN=your_github_token_here" >> .env
+
+# Get a token at: https://github.com/settings/tokens
+# No special permissions needed for public repos
+# Increases rate limit from 60 to 5000 requests/hour
+```
+
+### Development Workflows
+
+### Option 1: Full Stack with Vercel Dev (Recommended)
+```bash
+npm run dev
+# Runs vercel dev - Full stack with API routes
+# Frontend + Serverless functions locally
+# Opens at http://localhost:3000
+```
+
+### Option 2: Frontend Only (UI development)
+```bash
+npm run dev:frontend
+# Runs Vite only on :3000
+# API routes won't work locally
+# Deploy to Vercel preview to test API integration
+```
 
 ### Quick Test
 
-1. Open http://localhost:3000
-2. Enter a GitHub repository URL:
+1. Run `npm run dev`
+2. Open `http://localhost:3000`
+3. Enter a GitHub repository URL:
    - Try: `facebook/react`
    - Or: `https://github.com/torvalds/linux`
-   - Or: `microsoft/vscode`
-3. Click "Roast My Code!" 🔥
-4. Watch as the AI destroys someone's coding habits
-5. Share the results and go viral!
+   - Or just: `torvalds/linux` (shorthand works!)
+4. Click "Roast My Code!" 🔥
+
+**Note**: API calls won't work with `npm run dev:frontend` - use `npm run dev` (vercel dev) to test API integration locally.
 
 **Popular Repos to Roast:**
 - `torvalds/linux` - The Linux kernel
@@ -155,18 +201,16 @@ gitroast/
 │   ├── tailwind.config.js
 │   └── postcss.config.js
 │
-├── api/                        # Vercel Serverless Functions (NEW! 🎉)
-│   ├── roast.js               # Main roast API endpoint
+├── api/                        # Vercel Serverless Functions ⚡
+│   ├── roast.js               # Main roast API endpoint (AI + fallback)
+│   ├── roast-stream.js        # Streaming roast API with SSE
+│   ├── aiRoastGenerator.js    # Google Gemini AI integration 🤖
+│   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
-│   └── roastEngine.js         # AI roasting engine 🔥
+│   └── roastEngine.js         # Template-based roasting (fallback) 🔥
 │
-├── backend/                    # Traditional Node.js backend (legacy)
-│   ├── server.js              # Express server
-│   ├── gitAnalyzer.js         # Local git analysis
-│   ├── roastEngine.js         # Roasting engine
-│   └── package.json
-│
+├── .env                        # Environment variables (create this!)
 ├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
 ├── DEPLOYMENT.md              # Multi-platform deployment guide
 ├── vercel.json                # Vercel configuration
@@ -180,26 +224,28 @@ gitroast/
 
 ### Analyze a Repository
 
-**Option 1: Local Repository**
+**GitHub Repositories (Recommended):**
 ```bash
-# In the app, enter:
-/path/to/your/repository
-
-# Or use current directory:
-.
+# Any of these formats work:
+https://github.com/facebook/react
+facebook/react
+git@github.com:facebook/react.git
 ```
 
-**Option 2: Any Git Repo on Your Machine**
-```bash
-# Enter the full path:
-/home/user/projects/my-awesome-project
-```
+**Optional GitHub Token:**
+- Without token: 60 requests/hour
+- With token: 5,000 requests/hour
+- Add to `.env`: `GITHUB_TOKEN=your_token_here`
+- Get token at: `https://github.com/settings/tokens` (no permissions needed for public repos)
 
 ### Share Your Results
 
-1. Get your roast and grade
-2. Click "Share Your Grade"
-3. Post on Twitter with #GitRoast
+1. Get your AI-powered roast and grade
+2. Choose your platform:
+   - **Twitter** - Share with one click
+   - **LinkedIn** - Professional roasting
+   - **Copy to Clipboard** - Paste anywhere
+3. Post with #GitRoast
 4. Watch the engagement roll in! 🚀
 
 ---
@@ -208,17 +254,20 @@ gitroast/
 
 ### Frontend
 - **React 18** - UI library
-- **Vite** - Lightning-fast build tool
-- **TailwindCSS** - Utility-first styling
+- **Vite 6** - Lightning-fast build tool
+- **TailwindCSS 3** - Utility-first styling
 - **Framer Motion** - Smooth animations
 - **React Confetti** - Celebration effects
 - **Lucide React** - Beautiful icons
 - **Axios** - HTTP requests
 
-### Backend
-- **Node.js** - Runtime
-- **Express** - Web framework
-- **simple-git** - Git operations
+### Backend & AI
+- **Node.js (ESM)** - Runtime with module support
+- **Vercel Serverless Functions** - Scalable API endpoints
+- **Google Gemini AI (gemini-2.5-flash)** - AI-powered roast generation
+- **Bottleneck** - Rate limiting & retry logic with exponential backoff
+- **GitHub REST API (@octokit/rest)** - Repository data fetching
+- **Server-Sent Events (SSE)** - Real-time streaming responses
 - **CORS** - Cross-origin support
 
 ---
@@ -227,7 +276,7 @@ gitroast/
 
 ### Add Your Own Roasts
 
-Edit `backend/roastEngine.js` to add custom roasting logic:
+Edit `api/roastEngine.js` to add custom roasting logic:
 
 ```javascript
 if (stats.yourCustomPattern) {
@@ -256,13 +305,33 @@ colors: {
 
 ## 📊 API Endpoints
 
-### `POST /api/roast`
-Analyze a GitHub repository and get roasted
+### `POST /api/roast-stream` (NEW! ⚡)
+AI-powered streaming roast with real-time response
 
 **Request:**
 ```json
 {
   "repoUrl": "facebook/react",
+  "githubToken": "optional_token_for_higher_rate_limits"
+}
+```
+
+**Response:** Server-Sent Events (SSE) stream
+```text
+data: {"type":"stats","data":{...}}
+data: {"type":"chunk","text":"You"}
+data: {"type":"chunk","text":" really"}
+data: {"type":"chunk","text":" thought..."}
+data: {"type":"complete","data":{roastData}}
+```
+
+### `POST /api/roast`
+Analyze a GitHub repository and get roasted (non-streaming fallback)
+
+**Request:**
+```json
+{
+  "repoUrl": "facebook/react" or "Umang00",
   "githubToken": "optional_token_for_higher_rate_limits"
 }
 ```
@@ -286,7 +355,8 @@ Analyze a GitHub repository and get roasted
     "owner": "facebook",
     "repo": "react",
     "fullName": "facebook/react"
-  }
+  },
+  "analysisType": "repo" or "profile"
 }
 ```
 
