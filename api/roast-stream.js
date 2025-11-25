@@ -1,5 +1,6 @@
 import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
 import { generateStreamingAIRoast } from './aiRoastGenerator.js';
+import { generateRoast } from './roastEngine.js';
 
 /**
  * Vercel Serverless Function for Streaming GitRoast
@@ -76,7 +77,6 @@ export default async function handler(req, res) {
         totalCommits: gitStats.totalCommits,
         lateNightCommits: gitStats.lateNightCommits,
         lateNightPercentage: gitStats.lateNightPercentage,
-        avgCommitSize: gitStats.avgCommitSize,
       };
 
       // Send final complete data
@@ -86,7 +86,6 @@ export default async function handler(req, res) {
       console.error('AI generation failed, falling back to template roasts:', aiError);
 
       // Fallback to template-based roasts if AI fails
-      const { generateRoast } = await import('./roastEngine.js');
       roastData = generateRoast(gitStats);
       roastData.repository = gitStats.repositoryInfo;
       roastData.analysisType = inputType.type;
@@ -110,12 +109,15 @@ export default async function handler(req, res) {
       error: error.message || 'Failed to analyze GitHub data'
     };
 
-    // Try to send error as SSE if headers not sent, otherwise as JSON
-    if (!res.headersSent) {
-      res.setHeader('Content-Type', 'text/event-stream');
+    // Try to send error as SSE if headers not sent
+    try {
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'text/event-stream');
+      }
+      res.write(`data: ${JSON.stringify(errorData)}\n\n`);
+      res.end();
+    } catch (writeError) {
+      console.error('Failed to send error response:', writeError);
     }
-
-    res.write(`data: ${JSON.stringify(errorData)}\n\n`);
-    res.end();
   }
 }

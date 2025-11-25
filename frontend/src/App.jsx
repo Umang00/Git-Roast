@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
-import { Flame, Github, Trophy, Clock, GitBranch, Code2, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
+import { Flame, Github, Trophy, Clock, GitBranch, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
 import axios from 'axios'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -776,7 +776,7 @@ Try it: ${websiteUrl}
               )}
 
               {/* Stats Grid */}
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <StatCard
                   icon={<GitBranch className="w-8 h-8" />}
                   label="Total Commits"
@@ -789,13 +789,6 @@ Try it: ${websiteUrl}
                   value={roastData.stats.lateNightCommits}
                   color="text-purple-400"
                   subtitle={`${roastData.stats.lateNightPercentage}%`}
-                />
-                <StatCard
-                  icon={<Code2 className="w-8 h-8" />}
-                  label="Avg Commit Size"
-                  value={roastData.stats.avgCommitSize}
-                  color="text-pink-400"
-                  subtitle="lines"
                 />
               </div>
 

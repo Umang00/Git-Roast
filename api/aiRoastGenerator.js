@@ -12,7 +12,7 @@ import { withGeminiRetry } from './retryUtils.js';
  * All parameters are configurable via environment variables for flexibility
  */
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not found in environment variables');
@@ -73,7 +73,6 @@ function distillStatsForPrompt(stats) {
     lateNightPercentage: stats.lateNightPercentage,
     weekendCommits: stats.weekendCommits,
     weekendPercentage: stats.weekendPercentage,
-    avgCommitSize: stats.avgCommitSize,
 
     // Commit message quality metrics
     singleCharMessages: stats.singleCharMessages,
@@ -100,6 +99,17 @@ function distillStatsForPrompt(stats) {
 }
 
 /**
+ * Parse AI response text into JSON, cleaning markdown code blocks
+ */
+function parseAIResponse(text) {
+  const cleanedText = text
+    .replace(/```(?:json)?\r?\n?/gi, '')
+    .replace(/```\r?\n?/g, '')
+    .trim();
+  return JSON.parse(cleanedText);
+}
+
+/**
  * Build a comprehensive prompt for Gemini based on GitHub stats
  */
 function buildRoastPrompt(stats) {
@@ -110,9 +120,9 @@ function buildRoastPrompt(stats) {
   const profileLabel = repoInfo.username
     ? `@${repoInfo.username}'s GitHub profile`
     : 'this GitHub profile';
-  const repoLabel = repoInfo.fullName || repoInfo.owner && repoInfo.repo
-    ? repoInfo.fullName || `${repoInfo.owner}/${repoInfo.repo}`
-    : 'this repository';
+  const repoLabel = repoInfo.fullName
+    || (repoInfo.owner && repoInfo.repo ? `${repoInfo.owner}/${repoInfo.repo}` : null)
+    || 'this repository';
   const target = isProfile ? profileLabel : repoLabel;
 
   // Distill stats to remove PII and reduce payload size
@@ -259,12 +269,7 @@ export async function generateAIRoast(stats) {
     // Parse JSON response
     let roastData;
     try {
-      // Remove markdown code blocks if present (tolerant of \r\n and optional language tag)
-      const cleanedText = text
-        .replace(/```(?:json)?\r?\n?/gi, '')
-        .replace(/```\r?\n?/g, '')
-        .trim();
-      roastData = JSON.parse(cleanedText);
+      roastData = parseAIResponse(text);
     } catch (parseError) {
       console.error('Failed to parse AI response:', text);
       throw new Error('AI generated invalid response format');
@@ -312,12 +317,7 @@ export async function generateStreamingAIRoast(stats, onChunk) {
     // Parse final result
     let roastData;
     try {
-      // Remove markdown code blocks if present (tolerant of \r\n and optional language tag)
-      const cleanedText = fullText
-        .replace(/```(?:json)?\r?\n?/gi, '')
-        .replace(/```\r?\n?/g, '')
-        .trim();
-      roastData = JSON.parse(cleanedText);
+      roastData = parseAIResponse(fullText);
     } catch (parseError) {
       console.error('Failed to parse streaming AI response:', fullText);
       throw new Error('AI generated invalid response format');

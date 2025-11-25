@@ -124,28 +124,6 @@ export function generateRoast(stats) {
     severity: 3
   });
 
-  // Commit size - NO MERCY
-  if (stats.avgCommitSize > 500) {
-    roasts.push({
-      emoji: '📦',
-      title: 'The Atomic Bomb Committer',
-      content: `${stats.avgCommitSize} lines per commit on average. What the actual fuck? Are you committing monthly? Do you not understand version control? Each of your commits is a war crime against code reviewers. "Oh let me just commit 2000 lines of mixed changes with no explanation" - that's you. That's what you sound like. Your PRs must be fucking HORRIFYING. Have you ever heard of incremental changes? Small, focused commits? Or are you just rawdogging git with zero fucks given?`,
-      severity: 5
-    });
-
-    suggestions.push('Small commits. Learn what they are. Use them. Your reviewers are suffering.');
-    suggestions.push('Breaking changes into atomic commits isn\'t optional. It\'s basic fucking hygiene.');
-  } else if (stats.avgCommitSize < 10 && stats.avgCommitSize > 0) {
-    roasts.push({
-      emoji: '🐭',
-      title: 'Commit Spam Artist - The Human DDOS Attack',
-      content: `${stats.avgCommitSize} lines per commit. Are you okay? Do you commit after every keystroke? Your git log is UNREADABLE. Scrolling through your history is like reading a fucking grocery list. "Fixed typo", "Actually fixed typo", "Fixed the fix", "Reverted fix", "Fixed again". CONSOLIDATE YOUR CHANGES. This isn't version control, it's anxiety manifest in commits.`,
-      severity: 4
-    });
-
-    suggestions.push('Commit when you finish a logical unit of work. Not every time you breathe.');
-  }
-
   // Total commits
   if (stats.totalCommits > 1000) {
     achievements.push({
@@ -312,7 +290,6 @@ export function generateRoast(stats) {
       lateNightCommits: stats.lateNightCommits,
       lateNightPercentage: stats.lateNightPercentage,
       weekendCommits: stats.weekendCommits,
-      avgCommitSize: stats.avgCommitSize || 'N/A',
       authorCount: stats.authorCount,
     },
     roasts: roasts.length > 0 ? roasts : getDefaultRoasts(stats),
@@ -334,10 +311,6 @@ function calculateGrade(stats) {
   // Deduct for message quality
   if (stats.averageMessageLength < 20) score -= 15;
   if (stats.averageMessageLength < 10) score -= 15;
-
-  // Deduct for commit size extremes
-  if (stats.avgCommitSize > 500) score -= 15;
-  if (stats.avgCommitSize < 10 && stats.avgCommitSize > 0) score -= 10;
 
   // Deduct for low commit count (might be new or lazy)
   if (stats.totalCommits < 10) score -= 10;

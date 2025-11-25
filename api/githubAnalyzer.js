@@ -394,10 +394,6 @@ function analyzeCommits(commits, owner, repo) {
   const totalMessageLength = stats.commitMessages.reduce((sum, msg) => sum + msg.length, 0);
   stats.averageMessageLength = Math.round(totalMessageLength / stats.commitMessages.length);
 
-  // Estimate average commit size (GitHub API doesn't provide exact stats without additional calls)
-  // We'll use a reasonable estimate based on typical commits
-  stats.avgCommitSize = Math.round(50 + Math.random() * 100); // Placeholder
-
   // Convert Set to Array
   stats.authors = Array.from(stats.authors);
   stats.authorCount = stats.authors.length;

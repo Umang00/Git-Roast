@@ -71,19 +71,23 @@ export async function withRetry(fn, options = {}) {
         throw error;
       }
 
+      // Add jitter to prevent thundering herd (±25% of delay)
+      const jitter = delay * 0.25 * (Math.random() - 0.5);
+      const actualDelay = Math.round(delay + jitter);
+
       // Log retry attempt
       console.warn(
         `Attempt ${attempt + 1}/${maxRetries + 1} failed: ${error.message}. ` +
-        `Retrying in ${delay}ms...`
+        `Retrying in ${actualDelay}ms...`
       );
 
       // Call onRetry callback if provided
       if (onRetry) {
-        onRetry(attempt, error, delay);
+        onRetry(attempt, error, actualDelay);
       }
 
       // Wait before retrying
-      await sleep(delay);
+      await sleep(actualDelay);
 
       // Increase delay with exponential backoff
       delay = Math.min(delay * backoffFactor, maxDelay);

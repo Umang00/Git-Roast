@@ -80,7 +80,6 @@ export default async function handler(req, res) {
       totalCommits: gitStats.totalCommits,
       lateNightCommits: gitStats.lateNightCommits,
       lateNightPercentage: gitStats.lateNightPercentage,
-      avgCommitSize: gitStats.avgCommitSize,
     };
 
     res.status(200).json(roastData);
