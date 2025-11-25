@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Confetti from 'react-confetti'
 import { Flame, Github, Trophy, Clock, GitBranch, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
 import axios from 'axios'
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
 import { Analytics } from '@vercel/analytics/react'
 import './App.css'
 
@@ -22,11 +20,11 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [linkedInCopied, setLinkedInCopied] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [pdfError, setPdfError] = useState('') // Separate error state for PDF download
 
   // Refs to track timeouts for cleanup
   const linkedInTimeoutRef = useRef(null)
   const confettiTimeoutRef = useRef(null)
-  const resultsRef = useRef(null)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -300,105 +298,42 @@ Try it: ${websiteUrl}
   }
 
   const downloadAsPDF = async () => {
-    if (!resultsRef.current || downloadingPDF) return
+    if (!roastData || downloadingPDF) return
 
     try {
       setDownloadingPDF(true)
+      setPdfError('') // Clear any previous errors
 
-      // Step 1: Disable animations and transitions
-      const style = document.createElement('style')
-      style.id = 'pdf-disable-animations'
-      style.innerHTML = `
-        * {
-          animation: none !important;
-          animation-duration: 0s !important;
-          transition: none !important;
-          transition-duration: 0s !important;
-        }
-      `
-      document.head.appendChild(style)
-
-      // Step 2: Scroll to top to ensure full content is visible
-      window.scrollTo(0, 0)
-
-      // Step 3: Wait for fonts to be ready
-      await document.fonts.ready
-
-      // Step 4: Wait for all images to load
-      const images = Array.from(resultsRef.current.querySelectorAll('img'))
-      await Promise.all(
-        images.map(img =>
-          img.complete ? Promise.resolve() :
-          new Promise(resolve => {
-            img.onload = resolve
-            img.onerror = resolve
-          })
-        )
-      )
-
-      // Step 5: Small delay to ensure everything is rendered
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Step 6: Capture with improved settings
-      const canvas = await html2canvas(resultsRef.current, {
-        scale: Math.min(2, window.devicePixelRatio || 1), // Adaptive quality
-        useCORS: true, // Allow cross-origin images
-        allowTaint: false,
-        logging: false,
-        backgroundColor: '#0a0a0f', // Match dark background
-        windowWidth: resultsRef.current.scrollWidth,
-        windowHeight: resultsRef.current.scrollHeight
+      // Call the PDF generation API endpoint
+      const response = await axios.post(`${API_URL}/generate-pdf`, roastData, {
+        responseType: 'blob', // Important: tells axios to handle binary data
       })
 
-      // Step 7: Remove animation-disable style
-      const styleElement = document.getElementById('pdf-disable-animations')
-      if (styleElement) {
-        document.head.removeChild(styleElement)
-      }
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
 
-      // Calculate PDF dimensions
-      const imgWidth = 210 // A4 width in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      // Generate filename from repo/profile name with sanitization
+      const repoName = roastData.repository?.fullName || roastData.repository?.username || 'Report'
+      // Remove problematic characters that can cause issues in filenames
+      const safeRepoName = String(repoName).replace(/[/\\?%*:|"<>]/g, '-')
+      const filename = `GitRoast-${safeRepoName}.pdf`
 
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const imgData = canvas.toDataURL('image/png', 0.95) // Slightly compressed for smaller file size
+      link.setAttribute('download', filename)
+      document.body.appendChild(link)
+      link.click()
 
-      // Handle multi-page PDFs for long content
-      let heightLeft = imgHeight
-      let position = 0
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= 297 // A4 height in mm
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= 297
-      }
-
-      // Generate filename from repo/profile name
-      const filename = roastData.repository?.fullName
-        ? `GitRoast-${roastData.repository.fullName.replace('/', '-')}.pdf`
-        : roastData.repository?.username
-        ? `GitRoast-${roastData.repository.username}.pdf`
-        : 'GitRoast-Report.pdf'
-
-      // Download PDF
-      pdf.save(filename)
-
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download PDF:', err)
+      // Show error notification near the download button, not in the main error block
+      setPdfError('Failed to generate PDF. Please try again.')
+    } finally {
       setDownloadingPDF(false)
-    } catch (error) {
-      console.error('Failed to generate PDF:', error)
-      setError('Failed to generate PDF. Please try again.')
-      setDownloadingPDF(false)
-
-      // Cleanup: remove animation-disable style if error occurred
-      const styleElement = document.getElementById('pdf-disable-animations')
-      if (styleElement) {
-        document.head.removeChild(styleElement)
-      }
     }
   }
 
@@ -415,6 +350,13 @@ Try it: ${websiteUrl}
     const timer = setTimeout(() => setLinkedInCopied(false), 3000)
     return () => clearTimeout(timer)
   }, [linkedInCopied])
+
+  // Cleanup timer for PDF error state
+  useEffect(() => {
+    if (!pdfError) return
+    const timer = setTimeout(() => setPdfError(''), 5000) // Show error for 5 seconds
+    return () => clearTimeout(timer)
+  }, [pdfError])
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -663,7 +605,6 @@ Try it: ${websiteUrl}
         <AnimatePresence>
           {roastData && (
             <motion.div
-              ref={resultsRef}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -690,7 +631,7 @@ Try it: ${websiteUrl}
                   {roastData.grade} {getGradeEmoji(roastData.grade)}
                 </motion.div>
 
-                <p className="text-xl text-gray-300 mb-6">{roastData.gradeDescription}</p>
+                <p className="text-xl text-gray-300 mb-6">{parseMarkdown(roastData.gradeDescription)}</p>
 
                 {/* Social Share Buttons */}
                 <div className="flex flex-wrap gap-3 justify-center">
@@ -749,7 +690,7 @@ Try it: ${websiteUrl}
                     whileTap={{ scale: downloadingPDF ? 1 : 0.95 }}
                   >
                     <Download className="w-5 h-5" />
-                    {downloadingPDF ? 'Generating PDF...' : 'Download Full Roast'}
+                    {downloadingPDF ? 'Generating PDF...' : 'Download PDF'}
                   </motion.button>
                 </div>
 
@@ -764,6 +705,22 @@ Try it: ${websiteUrl}
                     >
                       <p className="text-sm text-blue-300">
                         ✅ Text copied! Paste it into LinkedIn 📝
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* PDF Error Notification - Shows near download button */}
+                <AnimatePresence>
+                  {pdfError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-3 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-center"
+                    >
+                      <p className="text-sm text-red-300">
+                        ❌ {pdfError}
                       </p>
                     </motion.div>
                   )}
@@ -870,8 +827,8 @@ Try it: ${websiteUrl}
                         className="bg-dark-bg rounded-lg p-4 border border-yellow-500/30"
                       >
                         <div className="text-3xl mb-2">{achievement.emoji}</div>
-                        <div className="font-bold text-yellow-400">{achievement.title}</div>
-                        <div className="text-sm text-gray-400">{achievement.description}</div>
+                        <div className="font-bold text-yellow-400">{parseMarkdown(achievement.title)}</div>
+                        <div className="text-sm text-gray-400">{parseMarkdown(achievement.description)}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -899,7 +856,7 @@ Try it: ${websiteUrl}
                       className="flex items-start gap-3 text-gray-300"
                     >
                       <span className="text-green-400 font-bold">•</span>
-                      <span>{suggestion}</span>
+                      <span>{parseMarkdown(suggestion)}</span>
                     </motion.li>
                   ))}
                 </ul>
