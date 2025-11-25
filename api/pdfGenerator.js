@@ -8,6 +8,27 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
  * NOTE: Emojis removed from PDF to prevent text rendering issues
  */
 
+/**
+ * Strip markdown syntax from text for PDF rendering
+ * PDFs can't render markdown formatting like bold/italic, so we extract plain text
+ * Removes: **, __, *, _, ` (markdown syntax)
+ * @param {string} text - Text potentially containing markdown
+ * @returns {string} Plain text without markdown syntax
+ */
+function stripMarkdown(text) {
+  if (!text || typeof text !== 'string') return text || '';
+
+  return text
+    // Remove bold: **text** or __text__
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    // Remove code: `text`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove italic: *text* or _text_ (process after bold to avoid conflicts)
+    .replace(/\*((?!\s).*?(?<!\s))\*/g, '$1')
+    .replace(/_((?!\s).*?(?<!\s))_/g, '$1');
+}
+
 // Define styles for PDF components
 const styles = StyleSheet.create({
   page: {
@@ -240,9 +261,9 @@ export function createRoastPDF(roastData) {
           React.createElement(
             View,
             { key: index, style: styles.roastCard },
-            // Just title and content, no emoji display
-            React.createElement(Text, { style: styles.roastTitle }, roast.title || 'Untitled'),
-            React.createElement(Text, { style: styles.roastContent }, roast.content || ''),
+            // Just title and content, no emoji display (strip markdown for PDF)
+            React.createElement(Text, { style: styles.roastTitle }, stripMarkdown(roast.title || 'Untitled')),
+            React.createElement(Text, { style: styles.roastContent }, stripMarkdown(roast.content || '')),
             roast.severity ? React.createElement(
               View,
               { style: styles.severityDots },
@@ -273,7 +294,7 @@ export function createRoastPDF(roastData) {
           React.createElement(
             Text,
             { key: index, style: styles.suggestionItem },
-            `• ${typeof suggestion === 'string' ? suggestion : String(suggestion || '')}`
+            `• ${stripMarkdown(typeof suggestion === 'string' ? suggestion : String(suggestion || ''))}`
           )
         )
       ) : null,

@@ -827,8 +827,8 @@ Try it: ${websiteUrl}
                         className="bg-dark-bg rounded-lg p-4 border border-yellow-500/30"
                       >
                         <div className="text-3xl mb-2">{achievement.emoji}</div>
-                        <div className="font-bold text-yellow-400">{achievement.title}</div>
-                        <div className="text-sm text-gray-400">{achievement.description}</div>
+                        <div className="font-bold text-yellow-400">{parseMarkdown(achievement.title)}</div>
+                        <div className="text-sm text-gray-400">{parseMarkdown(achievement.description)}</div>
                       </motion.div>
                     ))}
                   </div>
