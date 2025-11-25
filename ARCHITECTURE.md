@@ -111,15 +111,15 @@ GitRoast is a **serverless full-stack web application** that analyzes GitHub rep
     │  - Caching            │         │  - Auto-scaling       │
     └───────────────────────┘         └───────────┬───────────┘
                                                    │
-                    ┌──────────────────────────────┼──────────────┐
-                    │                              │              │
-                    ▼                              ▼              ▼
-        ┌────────────────────┐        ┌────────────────┐  ┌──────────────┐
-        │ /api/roast-stream  │        │ /api/roast     │  │ /api/health  │
-        │                    │        │                │  │              │
-        │ - SSE Streaming    │        │ - Regular API  │  │ - Status     │
-        │ - Real-time chunks │        │ - Fallback     │  │              │
-        └──────┬─────────────┘        └────────┬───────┘  └──────────────┘
+                    ┌──────────────────────────────┼──────────────────┐
+                    │                              │                  │
+                    ▼                              ▼                  ▼
+        ┌────────────────────┐        ┌────────────────┐  ┌─────────────────┐
+        │ /api/roast-stream  │        │ /api/roast     │  │ /api/health     │
+        │                    │        │                │  │                 │
+        │ - SSE Streaming    │        │ - Regular API  │  │ - Status        │
+        │ - Real-time chunks │        │ - Fallback     │  │                 │
+        └──────┬─────────────┘        └────────┬───────┘  └─────────────────┘
                │                               │
                │         ┌─────────────────────┴────────────────┐
                │         │                                      │
@@ -142,13 +142,21 @@ GitRoast is a **serverless full-stack web application** that analyzes GitHub rep
     └────────────┬─────────────┘
                  │
                  ▼
-    ┌──────────────────────────┐
-    │  GitHub REST API         │
-    │                          │
-    │  - Repository metadata   │
-    │  - Commit history        │
-    │  - User profiles         │
-    └──────────────────────────┘
+    ┌──────────────────────────┐      ┌─────────────────────┐
+    │  GitHub REST API         │      │ /api/generate-pdf   │
+    │                          │      │                     │
+    │  - Repository metadata   │      │ - PDF generation    │
+    │  - Commit history        │      │ - Binary response   │
+    │  - User profiles         │      └──────────┬──────────┘
+    └──────────────────────────┘                 │
+                                                 ▼
+                                    ┌──────────────────────┐
+                                    │  pdfGenerator.js     │
+                                    │                      │
+                                    │  - React PDF render  │
+                                    │  - Strip markdown    │
+                                    │  - Document layout   │
+                                    └──────────────────────┘
 
     External Services:
     ┌──────────────────────────┐
