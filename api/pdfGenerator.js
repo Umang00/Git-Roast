@@ -5,6 +5,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
  * PDF Generator for GitRoast Reports
  * Uses @react-pdf/renderer for server-side PDF generation
  * IMPORTANT: Uses React.createElement instead of JSX to avoid transpilation issues in Vercel serverless functions
+ * NOTE: Emojis removed from PDF to prevent text rendering issues
  */
 
 // Define styles for PDF components
@@ -104,24 +105,14 @@ const styles = StyleSheet.create({
     // Prevent page breaks inside roast cards
     breakInside: 'avoid',
   },
-  roastHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  roastEmoji: {
-    fontSize: 18, // Reduced from 24 to prevent overflow
-    marginRight: 8,
-    width: 24, // Fixed width to prevent overflow
-  },
   roastTitle: {
-    fontSize: 14, // Reduced from 16 to give more space
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#ef4444',
-    flex: 1,
+    marginBottom: 8,
   },
   roastContent: {
-    fontSize: 11, // Reduced from 12 for better fit
+    fontSize: 11,
     color: '#d1d5db',
     lineHeight: 1.5,
   },
@@ -133,7 +124,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 4, // Using margin instead of gap
+    marginRight: 4,
   },
   severityActive: {
     backgroundColor: '#ef4444',
@@ -153,7 +144,7 @@ const styles = StyleSheet.create({
     breakInside: 'avoid',
   },
   suggestionItem: {
-    fontSize: 10, // Reduced from 11
+    fontSize: 10,
     color: '#d1d5db',
     marginBottom: 6,
     paddingLeft: 10,
@@ -173,13 +164,16 @@ const styles = StyleSheet.create({
 
 // PDF Document Component using React.createElement (no JSX)
 export function createRoastPDF(roastData) {
-  const { repository, stats, grade, roasts, suggestions } = roastData;
+  const { repository, grade, roasts, suggestions } = roastData;
 
   // Get website URL from environment variable or use correct default
   const websiteUrl = process.env.WEBSITE_URL || 'https://git-roasts.vercel.app/';
 
   // Generate filename-friendly repo name with proper sanitization
   const repoName = repository?.fullName || repository?.username || 'Unknown';
+
+  // Safe stats with fallbacks (validated in API but extra safety here)
+  const stats = roastData.stats || { totalCommits: 0, lateNightCommits: 0, lateNightPercentage: 0 };
 
   return React.createElement(
     Document,
@@ -188,11 +182,11 @@ export function createRoastPDF(roastData) {
       Page,
       { size: 'A4', style: styles.page },
 
-      // Header
+      // Header (no emojis)
       React.createElement(
         View,
         { style: styles.header },
-        React.createElement(Text, { style: styles.title }, '🔥 GitRoast Report 🔥'),
+        React.createElement(Text, { style: styles.title }, 'GitRoast Report'),
         React.createElement(Text, { style: styles.subtitle }, repoName),
         React.createElement(
           Text,
@@ -205,53 +199,49 @@ export function createRoastPDF(roastData) {
         )
       ),
 
-      // Grade Section
+      // Grade Section (with fallback)
       React.createElement(
         View,
         { style: styles.gradeSection },
-        React.createElement(Text, { style: styles.gradeBadge }, grade),
+        React.createElement(Text, { style: styles.gradeBadge }, grade || 'N/A'),
         React.createElement(Text, { style: styles.gradeLabel }, 'Overall Grade')
       ),
 
-      // Stats Section
+      // Stats Section (with defensive checks)
       React.createElement(
         View,
         { style: styles.statsSection },
-        React.createElement(Text, { style: styles.sectionTitle }, '📊 Statistics'),
+        React.createElement(Text, { style: styles.sectionTitle }, 'Statistics'),
         React.createElement(
           View,
           { style: styles.statsGrid },
           React.createElement(
             View,
             { style: styles.statCard },
-            React.createElement(Text, { style: styles.statValue }, String(stats.totalCommits)),
+            React.createElement(Text, { style: styles.statValue }, String(stats.totalCommits ?? 0)),
             React.createElement(Text, { style: styles.statLabel }, 'Total Commits')
           ),
           React.createElement(
             View,
             { style: styles.statCard },
-            React.createElement(Text, { style: styles.statValue }, String(stats.lateNightCommits)),
+            React.createElement(Text, { style: styles.statValue }, String(stats.lateNightCommits ?? 0)),
             React.createElement(Text, { style: styles.statLabel }, 'Late Night Commits'),
-            React.createElement(Text, { style: styles.statSubtitle }, `${stats.lateNightPercentage}%`)
+            React.createElement(Text, { style: styles.statSubtitle }, `${stats.lateNightPercentage ?? 0}%`)
           )
         )
       ),
 
-      // Roasts Section
+      // Roasts Section (no emojis)
       React.createElement(
         View,
         { style: styles.roastsSection },
-        React.createElement(Text, { style: styles.sectionTitle }, '🔥 The Roasts'),
+        React.createElement(Text, { style: styles.sectionTitle }, 'The Roasts'),
         ...(roasts && Array.isArray(roasts) ? roasts.map((roast, index) =>
           React.createElement(
             View,
             { key: index, style: styles.roastCard },
-            React.createElement(
-              View,
-              { style: styles.roastHeader },
-              React.createElement(Text, { style: styles.roastEmoji }, roast.emoji || '🔥'),
-              React.createElement(Text, { style: styles.roastTitle }, roast.title || '')
-            ),
+            // Just title and content, no emoji display
+            React.createElement(Text, { style: styles.roastTitle }, roast.title || 'Untitled'),
             React.createElement(Text, { style: styles.roastContent }, roast.content || ''),
             roast.severity ? React.createElement(
               View,
@@ -270,29 +260,29 @@ export function createRoastPDF(roastData) {
         ) : [])
       ),
 
-      // Suggestions Section
+      // Suggestions Section (no emoji, with type checking)
       suggestions && suggestions.length > 0 ? React.createElement(
         View,
         { style: styles.suggestionsSection },
         React.createElement(
           Text,
           { style: [styles.sectionTitle, { color: '#10b981' }] },
-          '💡 Suggestions for Improvement'
+          'Suggestions for Improvement'
         ),
         ...suggestions.map((suggestion, index) =>
           React.createElement(
             Text,
             { key: index, style: styles.suggestionItem },
-            `• ${suggestion || ''}`
+            `• ${typeof suggestion === 'string' ? suggestion : String(suggestion || '')}`
           )
         )
       ) : null,
 
-      // Footer
+      // Footer (no emoji)
       React.createElement(
         View,
         { style: styles.footer },
-        React.createElement(Text, { style: styles.footerBold }, 'Made with 🔥 and absolutely no mercy'),
+        React.createElement(Text, { style: styles.footerBold }, 'Made with fire and absolutely no mercy'),
         React.createElement(Text, null, `Get your own roast at ${websiteUrl}`)
       )
     )

@@ -328,8 +328,8 @@ Try it: ${websiteUrl}
       // Cleanup
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to download PDF:', error)
+    } catch (err) {
+      console.error('Failed to download PDF:', err)
       // Show error notification near the download button, not in the main error block
       setPdfError('Failed to generate PDF. Please try again.')
     } finally {
