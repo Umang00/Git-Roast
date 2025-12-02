@@ -5,15 +5,16 @@ import { Copy, Check } from 'lucide-react';
 const MCPIntegration = () => {
   const [copiedConfig, setCopiedConfig] = useState(null);
 
-  // Use existing environment variable + fixed API path
-  const MCP_SERVER_URL = `${import.meta.env.VITE_WEBSITE_URL}/api/mcp`;
+  // Use existing environment variable + fixed API path with fallback
+  const MCP_SERVER_URL = `${import.meta.env.VITE_WEBSITE_URL || window.location.origin}/api/mcp`;
 
   // Configuration for each client
   const configs = {
     claude: {
       name: 'Claude Desktop',
-      icon: '🤖',
+      icon: 'https://mintlify.s3.us-west-1.amazonaws.com/claude/logo/dark.svg',
       description: 'Direct MCP protocol support',
+      copyValue: MCP_SERVER_URL, // Only copy URL for Claude
       config: {
         mcpServers: {
           gitroastmcp: {
@@ -21,21 +22,27 @@ const MCPIntegration = () => {
           }
         }
       },
-      configPath: {
-        mac: '~/Library/Application Support/Claude/claude_desktop_config.json',
-        windows: '%APPDATA%\\Claude\\claude_desktop_config.json'
-      },
       instructions: [
-        'Open your Claude Desktop configuration file',
-        'Add the configuration to the "mcpServers" object',
-        'Restart Claude Desktop',
+        'Open Claude Desktop app',
+        'Go to Connectors',
+        'Click "Add Custom Connector"',
+        'Name: "Git Roast"',
+        'Paste the URL from the button above',
+        'Click "Add"',
         'Ask Claude to roast a repository!'
       ]
     },
     cursor: {
       name: 'Cursor',
-      icon: '⚡',
+      icon: 'https://www.cursor.com/brand/icon.svg',
       description: 'AI-powered code editor',
+      copyValue: JSON.stringify({
+        mcpServers: {
+          gitroastmcp: {
+            url: MCP_SERVER_URL
+          }
+        }
+      }, null, 2),
       config: {
         mcpServers: {
           gitroastmcp: {
@@ -43,21 +50,25 @@ const MCPIntegration = () => {
           }
         }
       },
-      configPath: {
-        mac: '~/.cursor/mcp_config.json',
-        windows: '%USERPROFILE%\\.cursor\\mcp_config.json'
-      },
       instructions: [
-        'Open Cursor settings (Cmd/Ctrl + ,)',
-        'Navigate to MCP Servers section',
-        'Add the configuration',
-        'Restart Cursor to activate the tool'
+        'Open Cursor settings',
+        'Navigate to Tools → MCP',
+        'Click "Add MCP Server"',
+        'Paste the configuration from the button above',
+        'The server will be activated automatically'
       ]
     },
     other: {
       name: 'Other MCP Clients',
       icon: '🔌',
       description: 'Generic MCP configuration',
+      copyValue: JSON.stringify({
+        mcpServers: {
+          gitroastmcp: {
+            url: MCP_SERVER_URL
+          }
+        }
+      }, null, 2),
       config: {
         mcpServers: {
           gitroastmcp: {
@@ -66,32 +77,43 @@ const MCPIntegration = () => {
         }
       },
       instructions: [
-        'Locate your MCP client\'s configuration file',
-        'Add the configuration to the MCP servers section',
-        'Restart the application',
-        'The roast_repo tool will be available'
+        'Open your MCP client\'s settings',
+        'Navigate to the MCP servers section',
+        'Add a new MCP server',
+        'Paste the configuration from the button above',
+        'Save and restart if required'
       ]
     }
   };
 
   const copyToClipboard = async (configKey) => {
-    const config = configs[configKey].config;
-    const configText = JSON.stringify(config, null, 2);
+    const client = configs[configKey];
+    // Use copyValue if defined (for Claude Desktop URL-only), otherwise use JSON config
+    const textToCopy = client.copyValue || JSON.stringify(client.config, null, 2);
 
     try {
-      await navigator.clipboard.writeText(configText);
+      await navigator.clipboard.writeText(textToCopy);
       setCopiedConfig(configKey);
       setTimeout(() => setCopiedConfig(null), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
-    }
-  };
 
-  const detectOS = () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('mac')) return 'mac';
-    if (userAgent.includes('win')) return 'windows';
-    return 'mac'; // default
+      // Fallback for non-HTTPS or denied permissions
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopiedConfig(configKey);
+        setTimeout(() => setCopiedConfig(null), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
+    }
   };
 
   return (
@@ -119,10 +141,8 @@ const MCPIntegration = () => {
             <ConfigCard
               key={key}
               client={client}
-              configKey={key}
               isCopied={copiedConfig === key}
               onCopy={() => copyToClipboard(key)}
-              detectedOS={detectOS()}
             />
           ))}
         </div>
@@ -132,7 +152,7 @@ const MCPIntegration = () => {
           <p className="text-sm text-gray-400">
             <strong className="text-orange-400">Need help?</strong> Check out the{' '}
             <a
-              href="https://modelcontextprotocol.io"
+              href="https://modelcontextprotocol.io/docs/develop/connect-remote-servers"
               target="_blank"
               rel="noopener noreferrer"
               className="text-orange-400 hover:text-orange-300 underline"
@@ -147,7 +167,7 @@ const MCPIntegration = () => {
   );
 };
 
-const ConfigCard = ({ client, configKey, isCopied, onCopy, detectedOS }) => {
+const ConfigCard = ({ client, isCopied, onCopy }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -157,7 +177,11 @@ const ConfigCard = ({ client, configKey, isCopied, onCopy, detectedOS }) => {
     >
       {/* Card Header */}
       <div className="flex items-center gap-3 mb-3">
-        <span className="text-3xl">{client.icon}</span>
+        {client.icon.startsWith('http') ? (
+          <img src={client.icon} alt={client.name} className="w-8 h-8" />
+        ) : (
+          <span className="text-3xl">{client.icon}</span>
+        )}
         <div>
           <h3 className="text-xl font-bold text-white">{client.name}</h3>
           <p className="text-sm text-gray-400">{client.description}</p>
@@ -181,7 +205,7 @@ const ConfigCard = ({ client, configKey, isCopied, onCopy, detectedOS }) => {
         ) : (
           <>
             <Copy className="w-5 h-5" />
-            Copy Config
+            {client.copyValue && !client.copyValue.includes('{') ? 'Copy URL' : 'Copy Config'}
           </>
         )}
       </button>
@@ -201,16 +225,6 @@ const ConfigCard = ({ client, configKey, isCopied, onCopy, detectedOS }) => {
           exit={{ opacity: 0, height: 0 }}
           className="mt-4 space-y-3"
         >
-          {/* Config Path */}
-          {client.configPath && (
-            <div className="p-3 bg-black/50 rounded border border-orange-500/10">
-              <p className="text-xs text-gray-400 mb-1">Config file location:</p>
-              <code className="text-xs text-orange-300 break-all">
-                {client.configPath[detectedOS]}
-              </code>
-            </div>
-          )}
-
           {/* Instructions */}
           <div className="space-y-2">
             {client.instructions.map((instruction, idx) => (
@@ -221,13 +235,15 @@ const ConfigCard = ({ client, configKey, isCopied, onCopy, detectedOS }) => {
             ))}
           </div>
 
-          {/* Config Preview */}
-          <div className="p-3 bg-black/50 rounded border border-orange-500/10">
-            <p className="text-xs text-gray-400 mb-2">Configuration:</p>
-            <pre className="text-xs text-gray-300 overflow-x-auto">
-              {JSON.stringify(client.config, null, 2)}
-            </pre>
-          </div>
+          {/* Config Preview - only show for non-URL configs */}
+          {client.copyValue && client.copyValue.includes('{') && (
+            <div className="p-3 bg-black/50 rounded border border-orange-500/10">
+              <p className="text-xs text-gray-400 mb-2">Configuration JSON:</p>
+              <pre className="text-xs text-gray-300 overflow-x-auto">
+                {client.copyValue}
+              </pre>
+            </div>
+          )}
         </motion.div>
       )}
     </motion.div>

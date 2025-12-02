@@ -558,9 +558,6 @@ Try it: ${websiteUrl}
           )}
         </motion.div>
 
-        {/* MCP Integration Section */}
-        <MCPIntegration />
-
         {/* Input Section */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -631,6 +628,9 @@ Try it: ${websiteUrl}
             </div>
           </div>
         </motion.div>
+
+        {/* MCP Integration Section - Below Input */}
+        <MCPIntegration />
 
         {/* Streaming Text Display */}
         {streaming && streamText && (
