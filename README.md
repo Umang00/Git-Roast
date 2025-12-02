@@ -17,6 +17,16 @@
 
 ## 🆕 What's New in GitRoast 3.0
 
+### 🔌 **NEW: MCP Server Integration!**
+
+Use Git Roast directly in Claude Desktop, Cursor, and other MCP-compatible AI tools!
+
+- 🔌 **Model Context Protocol Server** - Access roasting functionality from any MCP client
+- 🤖 **Claude Desktop Integration** - Get roasts directly in Claude conversations
+- ⚡ **Cursor Support** - Roast repositories from your code editor
+- 🌐 **Remote HTTP Server** - No local installation required
+- 📖 **Full Documentation** - [MCP Setup Guide](docs/MCP_SETUP.md)
+
 ### 🤖 **AI-POWERED ROASTS with Google Gemini!**
 
 - 🤖 **Google Gemini AI Integration** - Dynamic, personalized roasts based on YOUR actual code patterns!
@@ -204,15 +214,20 @@ gitroast/
 ├── api/                        # Vercel Serverless Functions ⚡
 │   ├── roast.js               # Main roast API endpoint (AI + fallback)
 │   ├── roast-stream.js        # Streaming roast API with SSE
+│   ├── mcp.ts                 # MCP Server endpoint 🔌
 │   ├── aiRoastGenerator.js    # Google Gemini AI integration 🤖
 │   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
 │   └── roastEngine.js         # Template-based roasting (fallback) 🔥
 │
+├── docs/                       # Documentation 📚
+│   └── MCP_SETUP.md           # MCP Server setup guide
+│
 ├── .env                        # Environment variables (create this!)
 ├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
 ├── DEPLOYMENT.md              # Multi-platform deployment guide
+├── tsconfig.json              # TypeScript configuration
 ├── vercel.json                # Vercel configuration
 ├── package.json               # Root package with scripts
 └── README.md                  # You are here!
@@ -304,6 +319,17 @@ colors: {
 ---
 
 ## 📊 API Endpoints
+
+### `POST /api/mcp` (NEW! 🔌)
+MCP Server endpoint for AI assistants
+
+**Purpose:** Model Context Protocol server providing the `roast_repo` tool for Claude Desktop, Cursor, and other MCP clients.
+
+**Setup:** See [MCP Setup Guide](docs/MCP_SETUP.md) for configuration instructions.
+
+**Tool:** `roast_repo`
+- **Input:** `url` (GitHub repository URL or username)
+- **Output:** Formatted markdown roast report
 
 ### `POST /api/roast-stream` (NEW! ⚡)
 AI-powered streaming roast with real-time response

@@ -6,13 +6,20 @@ const MCPIntegration = () => {
   const [copiedConfig, setCopiedConfig] = useState(null);
 
   // Use existing environment variable + fixed API path with fallback
-  const MCP_SERVER_URL = `${import.meta.env.VITE_WEBSITE_URL || window.location.origin}/api/mcp`;
+  // Normalize base URL to avoid double slashes
+  const getBaseUrl = () => {
+    const base = import.meta.env.VITE_WEBSITE_URL ||
+                 (typeof window !== 'undefined' ? window.location.origin : '');
+    return base.replace(/\/+$/, ''); // Remove trailing slashes
+  };
+  const MCP_SERVER_URL = `${getBaseUrl()}/api/mcp`;
 
   // Configuration for each client
   const configs = {
     claude: {
       name: 'Claude Desktop',
-      icon: 'https://mintlify.s3.us-west-1.amazonaws.com/claude/logo/dark.svg',
+      icon: '🤖',
+      isUrlOnly: true, // Explicit flag instead of heuristic
       description: 'Direct MCP protocol support',
       copyValue: MCP_SERVER_URL, // Only copy URL for Claude
       config: {
@@ -34,7 +41,8 @@ const MCPIntegration = () => {
     },
     cursor: {
       name: 'Cursor',
-      icon: 'https://www.cursor.com/brand/icon.svg',
+      icon: '⚡',
+      isUrlOnly: false,
       description: 'AI-powered code editor',
       copyValue: JSON.stringify({
         mcpServers: {
@@ -52,15 +60,16 @@ const MCPIntegration = () => {
       },
       instructions: [
         'Open Cursor settings',
-        'Navigate to Tools → MCP',
-        'Click "Add MCP Server"',
+        'Navigate to Tools & MCP',
+        'Click "Add New MCP Server"',
         'Paste the configuration from the button above',
         'The server will be activated automatically'
       ]
     },
     other: {
       name: 'Other MCP Clients',
-      icon: '🔌',
+      icon: '🔗', // Different icon from header (🔌)
+      isUrlOnly: false,
       description: 'Generic MCP configuration',
       copyValue: JSON.stringify({
         mcpServers: {
@@ -177,11 +186,7 @@ const ConfigCard = ({ client, isCopied, onCopy }) => {
     >
       {/* Card Header */}
       <div className="flex items-center gap-3 mb-3">
-        {client.icon.startsWith('http') ? (
-          <img src={client.icon} alt={client.name} className="w-8 h-8" />
-        ) : (
-          <span className="text-3xl">{client.icon}</span>
-        )}
+        <span className="text-3xl">{client.icon}</span>
         <div>
           <h3 className="text-xl font-bold text-white">{client.name}</h3>
           <p className="text-sm text-gray-400">{client.description}</p>
@@ -205,7 +210,7 @@ const ConfigCard = ({ client, isCopied, onCopy }) => {
         ) : (
           <>
             <Copy className="w-5 h-5" />
-            {client.copyValue && !client.copyValue.includes('{') ? 'Copy URL' : 'Copy Config'}
+            {client.isUrlOnly ? 'Copy URL' : 'Copy Config'}
           </>
         )}
       </button>
@@ -222,7 +227,6 @@ const ConfigCard = ({ client, isCopied, onCopy }) => {
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
           className="mt-4 space-y-3"
         >
           {/* Instructions */}
@@ -235,8 +239,8 @@ const ConfigCard = ({ client, isCopied, onCopy }) => {
             ))}
           </div>
 
-          {/* Config Preview - only show for non-URL configs */}
-          {client.copyValue && client.copyValue.includes('{') && (
+          {/* Config Preview - only show for JSON configs (not URL-only) */}
+          {!client.isUrlOnly && client.copyValue && (
             <div className="p-3 bg-black/50 rounded border border-orange-500/10">
               <p className="text-xs text-gray-400 mb-2">Configuration JSON:</p>
               <pre className="text-xs text-gray-300 overflow-x-auto">
