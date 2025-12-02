@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
 import { generateAIRoast } from './aiRoastGenerator.js';
@@ -24,8 +25,8 @@ export default async function handler(req, res) {
     { capabilities: { tools: {} } }
   );
 
-  // Register the roast_repo tool
-  server.setRequestHandler('tools/list', async () => ({
+  // Register the roast_repo tool - handler for tools/list
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [{
       name: 'roast_repo',
       description: 'Analyzes a GitHub repository or user profile and generates a brutal, funny roast based on commit history, patterns, and code quality',
@@ -42,7 +43,8 @@ export default async function handler(req, res) {
     }]
   }));
 
-  server.setRequestHandler('tools/call', async (request) => {
+  // Register tool call handler - handler for tools/call
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name !== 'roast_repo') {
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
