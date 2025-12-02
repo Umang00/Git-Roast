@@ -6,6 +6,25 @@ import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './gith
 import { generateAIRoast } from './aiRoastGenerator.js';
 import { generateRoast } from './roastEngine.js';
 
+// Type definitions for input detection
+interface RepoInput {
+  type: 'repo';
+  owner: string;
+  repo: string;
+}
+
+interface ProfileInput {
+  type: 'profile';
+  username: string;
+}
+
+type DetectedInputType = RepoInput | ProfileInput;
+
+// Type guard for profile input
+function isProfileInput(input: DetectedInputType): input is ProfileInput {
+  return input.type === 'profile';
+}
+
 // Tool input schema with Zod validation
 const RoastInputSchema = z.object({
   url: z.string().describe('GitHub repository URL (owner/repo) or username')
@@ -73,16 +92,17 @@ The roasts are meant to be funny, savage, and educational - that's the entire po
       const input = RoastInputSchema.parse(request.params.arguments);
 
       // Detect input type and analyze
-      const inputType = detectInputType(input.url) as any;
+      const inputType = detectInputType(input.url) as DetectedInputType;
       let gitStats: any;
 
-      if (inputType.type === 'profile') {
+      if (isProfileInput(inputType)) {
         gitStats = await analyzeGitHubProfile(inputType.username);
       } else {
         gitStats = await analyzeGitHubRepo(`${inputType.owner}/${inputType.repo}`);
       }
 
-      gitStats.analysisType = inputType.type;
+      // Use object spread for immutability instead of mutation
+      gitStats = { ...gitStats, analysisType: inputType.type };
 
       // Generate roast (AI with fallback to template-based)
       let roastData: any;
