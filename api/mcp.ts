@@ -12,7 +12,8 @@ const RoastInputSchema = z.object({
 });
 
 // Handler function (default export for Vercel)
-export default async function handler(req, res) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default async function handler(req: any, res: any) {
   // Only accept POST requests (MCP protocol requirement)
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed. Use POST.' });
@@ -54,8 +55,8 @@ export default async function handler(req, res) {
       const input = RoastInputSchema.parse(request.params.arguments);
 
       // Detect input type and analyze
-      const inputType = detectInputType(input.url);
-      let gitStats;
+      const inputType = detectInputType(input.url) as any;
+      let gitStats: any;
 
       if (inputType.type === 'profile') {
         gitStats = await analyzeGitHubProfile(inputType.username);
@@ -66,11 +67,11 @@ export default async function handler(req, res) {
       gitStats.analysisType = inputType.type;
 
       // Generate roast (AI with fallback to template-based)
-      let roastData;
+      let roastData: any;
       try {
         roastData = await generateAIRoast(gitStats);
-      } catch (aiError) {
-        console.warn('AI roast failed, using template fallback:', aiError.message);
+      } catch (aiError: any) {
+        console.warn('AI roast failed, using template fallback:', aiError?.message || 'Unknown error');
         roastData = generateRoast(gitStats);
       }
 
@@ -83,16 +84,16 @@ export default async function handler(req, res) {
           text: formattedRoast
         }]
       };
-    } catch (error) {
+    } catch (error: any) {
       // Throw clean error messages for MCP client
       // SDK will convert to JSON-RPC error response automatically
-      if (error.message.includes('not found')) {
+      if (error?.message?.includes('not found')) {
         throw new Error('Repository or user not found. Check the URL/username and try again.');
       }
-      if (error.message.includes('Rate limit')) {
+      if (error?.message?.includes('Rate limit')) {
         throw new Error('GitHub API rate limit exceeded. Try again later.');
       }
-      throw new Error(`Failed to roast repository: ${error.message}`);
+      throw new Error(`Failed to roast repository: ${error?.message || 'Unknown error'}`);
     }
   });
 
@@ -107,7 +108,7 @@ export default async function handler(req, res) {
 
     // Handle the HTTP request (SDK processes JSON-RPC automatically)
     await transport.handleRequest(req, res, req.body);
-  } catch (error) {
+  } catch (error: any) {
     // If transport/server initialization fails, send proper HTTP error
     // This ensures the client gets a response instead of a timeout
     console.error('MCP server error:', error);
@@ -115,14 +116,14 @@ export default async function handler(req, res) {
     if (!res.headersSent) {
       res.status(500).json({
         error: 'Internal server error',
-        message: error.message || 'Failed to process MCP request'
+        message: error?.message || 'Failed to process MCP request'
       });
     }
   }
 }
 
 // Format roast data as human-readable text for MCP clients
-function formatRoastForMCP(roastData, gitStats) {
+function formatRoastForMCP(roastData: any, gitStats: any): string {
   const lines = [];
 
   lines.push(`# Git Roast Report`);
@@ -154,7 +155,7 @@ function formatRoastForMCP(roastData, gitStats) {
   // Roasts
   if (roastData.roasts && roastData.roasts.length > 0) {
     lines.push('## Roasts');
-    roastData.roasts.forEach(roast => {
+    roastData.roasts.forEach((roast: any) => {
       lines.push('');
       lines.push(`### ${roast.emoji} ${roast.title}`);
       lines.push(roast.content);
@@ -165,7 +166,7 @@ function formatRoastForMCP(roastData, gitStats) {
   if (roastData.achievements && roastData.achievements.length > 0) {
     lines.push('');
     lines.push('## Achievements (Dubious)');
-    roastData.achievements.forEach(ach => {
+    roastData.achievements.forEach((ach: any) => {
       lines.push(`- ${ach.emoji} **${ach.title}**: ${ach.description}`);
     });
   }
@@ -174,7 +175,7 @@ function formatRoastForMCP(roastData, gitStats) {
   if (roastData.suggestions && roastData.suggestions.length > 0) {
     lines.push('');
     lines.push('## Suggestions (Brutally Honest)');
-    roastData.suggestions.forEach(sug => {
+    roastData.suggestions.forEach((sug: any) => {
       lines.push(`- ${sug}`);
     });
   }
