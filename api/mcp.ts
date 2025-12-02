@@ -142,7 +142,7 @@ function formatRoastForMCP(roastData: any, gitStats: any): string {
 
   lines.push('');
   lines.push(`## Grade: ${roastData.grade}`);
-  lines.push(roastData.gradeDescription);
+  lines.push(roastData.gradeDescription || 'No grade description available');
   lines.push('');
 
   // Stats summary
