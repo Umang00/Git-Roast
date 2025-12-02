@@ -87,10 +87,11 @@ export default async function handler(req: any, res: any) {
     } catch (error: any) {
       // Throw clean error messages for MCP client
       // SDK will convert to JSON-RPC error response automatically
-      if (error?.message?.includes('not found')) {
+      const errorMsg = error?.message?.toLowerCase() || '';
+      if (errorMsg.includes('not found')) {
         throw new Error('Repository or user not found. Check the URL/username and try again.');
       }
-      if (error?.message?.includes('Rate limit')) {
+      if (errorMsg.includes('rate limit')) {
         throw new Error('GitHub API rate limit exceeded. Try again later.');
       }
       throw new Error(`Failed to roast repository: ${error?.message || 'Unknown error'}`);
@@ -147,9 +148,9 @@ function formatRoastForMCP(roastData: any, gitStats: any): string {
 
   // Stats summary
   lines.push('## Stats');
-  lines.push(`- Total Commits: ${gitStats.totalCommits}`);
-  lines.push(`- Late Night Commits: ${gitStats.lateNightCommits} (${gitStats.lateNightPercentage}%)`);
-  lines.push(`- Weekend Commits: ${gitStats.weekendCommits} (${gitStats.weekendPercentage}%)`);
+  lines.push(`- Total Commits: ${gitStats.totalCommits ?? 0}`);
+  lines.push(`- Late Night Commits: ${gitStats.lateNightCommits ?? 0} (${gitStats.lateNightPercentage ?? 0}%)`);
+  lines.push(`- Weekend Commits: ${gitStats.weekendCommits ?? 0} (${gitStats.weekendPercentage ?? 0}%)`);
   lines.push('');
 
   // Roasts
@@ -157,8 +158,8 @@ function formatRoastForMCP(roastData: any, gitStats: any): string {
     lines.push('## Roasts');
     roastData.roasts.forEach((roast: any) => {
       lines.push('');
-      lines.push(`### ${roast.emoji} ${roast.title}`);
-      lines.push(roast.content);
+      lines.push(`### ${roast.emoji || '🔥'} ${roast.title || 'Roast'}`);
+      lines.push(roast.content || '');
     });
   }
 
@@ -167,7 +168,7 @@ function formatRoastForMCP(roastData: any, gitStats: any): string {
     lines.push('');
     lines.push('## Achievements (Dubious)');
     roastData.achievements.forEach((ach: any) => {
-      lines.push(`- ${ach.emoji} **${ach.title}**: ${ach.description}`);
+      lines.push(`- ${ach.emoji || '🏆'} **${ach.title || 'Achievement'}**: ${ach.description || ''}`);
     });
   }
 
