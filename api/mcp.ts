@@ -46,6 +46,7 @@ export default async function handler(req: any, res: any) {
 
   // Register tool call handler - handler for tools/call
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    // Protocol-level error: unknown tool (throw to return JSON-RPC error)
     if (request.params.name !== 'roast_repo') {
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
@@ -78,6 +79,7 @@ export default async function handler(req: any, res: any) {
       // Format response for MCP
       const formattedRoast = formatRoastForMCP(roastData, gitStats);
 
+      // Success: return result with content
       return {
         content: [{
           type: 'text',
@@ -85,16 +87,50 @@ export default async function handler(req: any, res: any) {
         }]
       };
     } catch (error: any) {
-      // Throw clean error messages for MCP client
-      // SDK will convert to JSON-RPC error response automatically
+      // Tool execution errors: return CallToolResult with isError: true
+      // This allows the LLM to see and potentially handle the error
       const errorMsg = error?.message?.toLowerCase() || '';
+
+      // Handle Zod validation errors
+      if (error?.name === 'ZodError') {
+        return {
+          isError: true,
+          content: [{
+            type: 'text',
+            text: `Invalid input: ${error.errors?.map((e: any) => e.message).join(', ') || 'Validation failed'}`
+          }]
+        };
+      }
+
+      // Handle GitHub API errors with specific user-friendly messages
       if (errorMsg.includes('not found')) {
-        throw new Error('Repository or user not found. Check the URL/username and try again.');
+        return {
+          isError: true,
+          content: [{
+            type: 'text',
+            text: 'Repository or user not found. Please check the URL/username and try again.'
+          }]
+        };
       }
+
       if (errorMsg.includes('rate limit')) {
-        throw new Error('GitHub API rate limit exceeded. Try again later.');
+        return {
+          isError: true,
+          content: [{
+            type: 'text',
+            text: 'GitHub API rate limit exceeded. Please try again later or use a GitHub token for higher limits.'
+          }]
+        };
       }
-      throw new Error(`Failed to roast repository: ${error?.message || 'Unknown error'}`);
+
+      // Generic tool execution error
+      return {
+        isError: true,
+        content: [{
+          type: 'text',
+          text: `Failed to roast repository: ${error?.message || 'Unknown error occurred'}`
+        }]
+      };
     }
   });
 
