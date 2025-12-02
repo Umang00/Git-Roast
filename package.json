@@ -31,6 +31,6 @@
   },
   "devDependencies": {
     "@tsconfig/node18": "^18.2.6",
-    "vercel": "^39.2.1"
+    "vercel": "^48.12.0"
   }
 }

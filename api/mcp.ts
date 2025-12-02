@@ -1,5 +1,5 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/http.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { analyzeGitHubRepo, analyzeGitHubProfile, detectInputType } from './githubAnalyzer.js';
 import { generateAIRoast } from './aiRoastGenerator.js';
@@ -99,11 +99,24 @@ export default async function handler(req, res) {
     sessionIdGenerator: undefined  // Critical: enables stateless mode
   });
 
-  // Connect transport to server
-  await server.connect(transport);
+  try {
+    // Connect transport to server
+    await server.connect(transport);
 
-  // Handle the HTTP request (SDK processes JSON-RPC automatically)
-  await transport.handleRequest(req, res, req.body);
+    // Handle the HTTP request (SDK processes JSON-RPC automatically)
+    await transport.handleRequest(req, res, req.body);
+  } catch (error) {
+    // If transport/server initialization fails, send proper HTTP error
+    // This ensures the client gets a response instead of a timeout
+    console.error('MCP server error:', error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal server error',
+        message: error.message || 'Failed to process MCP request'
+      });
+    }
+  }
 }
 
 // Format roast data as human-readable text for MCP clients
