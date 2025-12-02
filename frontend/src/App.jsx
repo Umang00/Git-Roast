@@ -6,6 +6,7 @@ import axios from 'axios'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Analytics } from '@vercel/analytics/react'
+import MCPIntegration from './components/MCPIntegration'
 import './App.css'
 
 // API URL configuration - uses environment variable or falls back to relative path
@@ -556,6 +557,9 @@ Try it: ${websiteUrl}
             </div>
           )}
         </motion.div>
+
+        {/* MCP Integration Section */}
+        <MCPIntegration />
 
         {/* Input Section */}
         <motion.div
