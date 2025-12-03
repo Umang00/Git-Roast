@@ -112,6 +112,12 @@ Get graded on your git habits:
 - **D** - Yikes, do better
 - **F** - Crime scene level code
 
+### 📄 PDF Export
+- **Download Complete Report** - Export your roast as a professionally formatted PDF
+- **Profile Analysis Included** - For GitHub profile roasts, includes analyzed repos and statistics
+- **Full Roast Details** - Grade, statistics, roasts, achievements, and suggestions
+- **Share Offline** - Perfect for sharing or archiving your roast
+
 ---
 
 ## 🚀 Quick Start
@@ -220,7 +226,9 @@ gitroast/
 │   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
-│   └── roastEngine.js         # Template-based roasting (fallback) 🔥
+│   ├── roastEngine.js         # Template-based roasting (fallback) 🔥
+│   ├── generate-pdf.js        # PDF generation API endpoint 📄
+│   └── pdfGenerator.js        # PDF document generator with React-PDF
 │
 ├── docs/                       # Documentation 📚
 │   ├── MCP_SETUP.md           # MCP Server setup guide
@@ -287,6 +295,7 @@ git@github.com:facebook/react.git
 - **Bottleneck** - Rate limiting & retry logic with exponential backoff
 - **GitHub REST API (@octokit/rest)** - Repository data fetching
 - **Server-Sent Events (SSE)** - Real-time streaming responses
+- **@react-pdf/renderer** - Server-side PDF generation
 - **CORS** - Cross-origin support
 
 ---
@@ -399,6 +408,32 @@ Analyze a GitHub repository and get roasted (non-streaming fallback)
   "analysisType": "repo" or "profile"
 }
 ```
+
+### `POST /api/generate-pdf` (NEW! 📄)
+Generate a PDF report of the roast results
+
+**Request:**
+```json
+{
+  "grade": "A",
+  "gradeDescription": "Pretty solid developer",
+  "stats": {...},
+  "roasts": [...],
+  "achievements": [...],
+  "suggestions": [...],
+  "repository": {...},
+  "analysisType": "repo" or "profile"
+}
+```
+
+**Response:** Binary PDF file (application/pdf)
+
+**Features:**
+- Professional PDF formatting with React-PDF
+- Includes all roast data: grade, stats, roasts, achievements, suggestions
+- Profile analysis section for GitHub profile roasts
+- Markdown formatting stripped for clean text
+- Downloadable via browser
 
 ### `GET /api/health`
 Check if the API is running
