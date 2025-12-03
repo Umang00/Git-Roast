@@ -87,6 +87,57 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontStyle: 'italic',
   },
+  profileSection: {
+    backgroundColor: '#1a1a2e',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    borderStyle: 'solid',
+    marginBottom: 20,
+  },
+  profileHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3b82f6',
+    marginBottom: 10,
+  },
+  profileStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  profileStatCard: {
+    backgroundColor: '#0a0a0f',
+    padding: 10,
+    borderRadius: 6,
+    width: '48%',
+    marginBottom: 8,
+  },
+  profileStatValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3b82f6',
+    marginBottom: 3,
+  },
+  profileStatLabel: {
+    fontSize: 10,
+    color: '#9ca3af',
+  },
+  profileReposList: {
+    marginTop: 10,
+  },
+  profileReposTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#9ca3af',
+    marginBottom: 5,
+  },
+  profileRepo: {
+    fontSize: 10,
+    color: '#d1d5db',
+    marginBottom: 3,
+  },
   statsSection: {
     marginBottom: 20,
   },
@@ -213,11 +264,11 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 30,
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 12,
     color: '#6b7280',
   },
   footerBold: {
-    fontSize: 10,
+    fontSize: 13,
     color: '#9ca3af',
     fontWeight: 'bold',
   },
@@ -225,7 +276,7 @@ const styles = StyleSheet.create({
 
 // PDF Document Component using React.createElement (no JSX)
 export function createRoastPDF(roastData) {
-  const { repository, grade, gradeDescription, roasts, achievements, suggestions } = roastData;
+  const { repository, grade, gradeDescription, roasts, achievements, suggestions, analysisType } = roastData;
 
   // Get website URL from environment variable or use correct default
   const websiteUrl = process.env.WEBSITE_URL || 'https://git-roasts.vercel.app/';
@@ -272,6 +323,62 @@ export function createRoastPDF(roastData) {
           stripMarkdown(gradeDescription)
         ) : null
       ),
+
+      // Profile Analysis Section (only for profile analysis, not repo)
+      analysisType === 'profile' && repository ? React.createElement(
+        View,
+        { style: styles.profileSection },
+        React.createElement(
+          Text,
+          { style: styles.profileHeader },
+          `Profile Analysis: @${repository.username || 'User'}`
+        ),
+        React.createElement(
+          Text,
+          { style: { fontSize: 11, color: '#9ca3af', marginBottom: 10 } },
+          `Analyzed ${repository.analyzedRepos || 0} of ${repository.totalRepos || 0} repositories`
+        ),
+        React.createElement(
+          View,
+          { style: styles.profileStatsGrid },
+          React.createElement(
+            View,
+            { style: styles.profileStatCard },
+            React.createElement(Text, { style: styles.profileStatValue }, String(repository.publicRepos || 0)),
+            React.createElement(Text, { style: styles.profileStatLabel }, 'Public Repos')
+          ),
+          React.createElement(
+            View,
+            { style: styles.profileStatCard },
+            React.createElement(Text, { style: styles.profileStatValue }, String(repository.followers || 0)),
+            React.createElement(Text, { style: styles.profileStatLabel }, 'Followers')
+          ),
+          React.createElement(
+            View,
+            { style: styles.profileStatCard },
+            React.createElement(Text, { style: styles.profileStatValue }, String(repository.following || 0)),
+            React.createElement(Text, { style: styles.profileStatLabel }, 'Following')
+          ),
+          React.createElement(
+            View,
+            { style: styles.profileStatCard },
+            React.createElement(Text, { style: styles.profileStatValue }, String(stats.totalCommits ?? 0)),
+            React.createElement(Text, { style: styles.profileStatLabel }, 'Total Commits')
+          )
+        ),
+        repository.topRepos && Array.isArray(repository.topRepos) && repository.topRepos.length > 0 ? React.createElement(
+          View,
+          { style: styles.profileReposList },
+          React.createElement(Text, { style: styles.profileReposTitle }, 'Most Active Repositories:'),
+          ...repository.topRepos.map((repo, idx) =>
+            React.createElement(
+              Text,
+              { key: idx, style: styles.profileRepo },
+              `${repo.name || 'Unknown'} (${repo.commits || 0} commits)`
+            )
+          )
+        ) : null
+      ) : null,
 
       // Stats Section (with defensive checks)
       React.createElement(
@@ -354,7 +461,7 @@ export function createRoastPDF(roastData) {
       ) : null,
 
       // Suggestions Section (no emoji, with type checking)
-      suggestions && suggestions.length > 0 ? React.createElement(
+      suggestions && Array.isArray(suggestions) && suggestions.length > 0 ? React.createElement(
         View,
         { style: styles.suggestionsSection },
         React.createElement(

@@ -563,9 +563,6 @@ Try it: ${websiteUrl}
           </div>
         </motion.div>
 
-        {/* MCP Integration Section - Below Input */}
-        <MCPIntegration />
-
         {/* Streaming Text Display */}
         {streaming && streamText && (
           <motion.div
@@ -628,7 +625,7 @@ Try it: ${websiteUrl}
                   {roastData.grade} {getGradeEmoji(roastData.grade)}
                 </motion.div>
 
-                <p className="text-xl text-gray-300 mb-6">{roastData.gradeDescription}</p>
+                <p className="text-xl text-gray-300 mb-6">{parseMarkdown(roastData.gradeDescription)}</p>
 
                 {/* Social Share Buttons */}
                 <div className="flex flex-wrap gap-3 justify-center">
@@ -824,8 +821,8 @@ Try it: ${websiteUrl}
                         className="bg-dark-bg rounded-lg p-4 border border-yellow-500/30"
                       >
                         <div className="text-3xl mb-2">{achievement.emoji}</div>
-                        <div className="font-bold text-yellow-400">{achievement.title}</div>
-                        <div className="text-sm text-gray-400">{achievement.description}</div>
+                        <div className="font-bold text-yellow-400">{parseMarkdown(achievement.title)}</div>
+                        <div className="text-sm text-gray-400">{parseMarkdown(achievement.description)}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -853,7 +850,7 @@ Try it: ${websiteUrl}
                       className="flex items-start gap-3 text-gray-300"
                     >
                       <span className="text-green-400 font-bold">•</span>
-                      <span>{suggestion}</span>
+                      <span>{parseMarkdown(suggestion)}</span>
                     </motion.li>
                   ))}
                 </ul>
@@ -861,6 +858,9 @@ Try it: ${websiteUrl}
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* MCP Integration Section - Shows after input, pushed down when results appear */}
+        <MCPIntegration />
 
         {/* Footer */}
         <motion.div
@@ -988,7 +988,7 @@ function RoastCard({ roast, index }) {
           {roast.emoji}
         </motion.div>
         <div className="flex-1">
-          <h4 className="text-xl font-bold text-red-400 mb-2">{roast.title}</h4>
+          <h4 className="text-xl font-bold text-red-400 mb-2">{parseMarkdown(roast.title)}</h4>
           <p className="text-gray-300 leading-relaxed">{parseMarkdown(roast.content)}</p>
           {roast.severity && (
             <div className="mt-3 flex gap-1">
