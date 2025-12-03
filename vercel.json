@@ -2,11 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "devCommand": "cd frontend && npm run dev",
   "installCommand": "npm install",
   "framework": "vite",
   "functions": {
     "api/**/*.js": {
+      "maxDuration": 60
+    },
+    "api/**/*.ts": {
       "maxDuration": 60
     }
   }

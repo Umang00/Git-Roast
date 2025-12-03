@@ -37,3 +37,7 @@ coverage/
 .cache/
 .temp/
 tmp/
+.vercel
+
+# Claude Code
+.claude/

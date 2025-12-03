@@ -4,6 +4,7 @@ import Confetti from 'react-confetti'
 import { Flame, Github, Trophy, Clock, GitBranch, Zap, AlertCircle, Twitter, Linkedin, Copy, Check, Mail, Globe, Download } from 'lucide-react'
 import axios from 'axios'
 import { Analytics } from '@vercel/analytics/react'
+import MCPIntegration from './components/MCPIntegration'
 import './App.css'
 
 // API URL configuration - uses environment variable or falls back to relative path
@@ -20,7 +21,7 @@ function App() {
   const [copied, setCopied] = useState(false)
   const [linkedInCopied, setLinkedInCopied] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
-  const [pdfError, setPdfError] = useState('') // Separate error state for PDF download
+  const [pdfError, setPdfError] = useState('')
 
   // Refs to track timeouts for cleanup
   const linkedInTimeoutRef = useRef(null)
@@ -302,11 +303,11 @@ Try it: ${websiteUrl}
 
     try {
       setDownloadingPDF(true)
-      setPdfError('') // Clear any previous errors
+      setPdfError('')
 
       // Call the PDF generation API endpoint
       const response = await axios.post(`${API_URL}/generate-pdf`, roastData, {
-        responseType: 'blob', // Important: tells axios to handle binary data
+        responseType: 'blob',
       })
 
       // Create a blob URL and trigger download
@@ -315,11 +316,21 @@ Try it: ${websiteUrl}
       const link = document.createElement('a')
       link.href = url
 
-      // Generate filename from repo/profile name with sanitization
-      const repoName = roastData.repository?.fullName || roastData.repository?.username || 'Report'
-      // Remove problematic characters that can cause issues in filenames
-      const safeRepoName = String(repoName).replace(/[/\\?%*:|"<>]/g, '-')
-      const filename = `GitRoast-${safeRepoName}.pdf`
+      // Extract filename from Content-Disposition header (if available)
+      // Falls back to generating filename client-side
+      let filename = 'GitRoast-Report.pdf'
+      const contentDisposition = response.headers['content-disposition']
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1]
+        }
+      } else {
+        // Fallback: Generate filename with sanitization (same logic as backend)
+        const repoName = roastData.repository?.fullName || roastData.repository?.username || 'Report'
+        const safeRepoName = String(repoName).replace(/[/\\?%*:|"<>]/g, '-')
+        filename = `GitRoast-${safeRepoName}.pdf`
+      }
 
       link.setAttribute('download', filename)
       document.body.appendChild(link)
@@ -330,8 +341,33 @@ Try it: ${websiteUrl}
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Failed to download PDF:', err)
-      // Show error notification near the download button, not in the main error block
-      setPdfError('Failed to generate PDF. Please try again.')
+
+      // Extract specific error message from API response if available
+      let errorMessage = 'Failed to generate PDF. Please try again.'
+
+      if (err.response?.data) {
+        // For blob responses that failed, we need to parse the error
+        if (err.response.data instanceof Blob) {
+          try {
+            const text = await err.response.data.text()
+            const errorData = JSON.parse(text)
+            if (errorData.error) {
+              errorMessage = `PDF generation failed: ${errorData.error}`
+            }
+          } catch (parseErr) {
+            // If we can't parse the blob, use default message
+            console.error('Failed to parse error blob:', parseErr)
+          }
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = `PDF generation failed: ${err.response.data}`
+        } else if (err.response.data.error) {
+          errorMessage = `PDF generation failed: ${err.response.data.error}`
+        }
+      } else if (err.message) {
+        errorMessage = `PDF generation failed: ${err.message}`
+      }
+
+      setPdfError(errorMessage)
     } finally {
       setDownloadingPDF(false)
     }
@@ -354,7 +390,7 @@ Try it: ${websiteUrl}
   // Cleanup timer for PDF error state
   useEffect(() => {
     if (!pdfError) return
-    const timer = setTimeout(() => setPdfError(''), 5000) // Show error for 5 seconds
+    const timer = setTimeout(() => setPdfError(''), 5000)
     return () => clearTimeout(timer)
   }, [pdfError])
 
@@ -710,7 +746,7 @@ Try it: ${websiteUrl}
                   )}
                 </AnimatePresence>
 
-                {/* PDF Error Notification - Shows near download button */}
+                {/* PDF Error Notification */}
                 <AnimatePresence>
                   {pdfError && (
                     <motion.div
@@ -865,6 +901,11 @@ Try it: ${websiteUrl}
           )}
         </AnimatePresence>
 
+        {/* MCP Integration Section - Shows after input, pushed down when results appear */}
+        <div className="mt-16">
+          <MCPIntegration />
+        </div>
+
         {/* Footer */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -901,76 +942,110 @@ function StatCard({ icon, label, value, color, subtitle, note }) {
 // Helper function to parse simple markdown (bold text) in roast content
 /**
  * Comprehensive inline markdown parser
- * Handles common markdown syntax: bold, italic, code, etc.
+ * Handles common markdown syntax: bold, italic, code, paragraph breaks, etc.
  * Processes in correct order to avoid conflicts (e.g., ** before *)
+ *
+ * Features:
+ * - Defensive typing: coerces non-strings to string to avoid rendering [object Object]
+ * - Paragraph breaks: treats \n\n as paragraph separators
+ * - Overlap resolution: prioritizes earlier patterns when matches conflict
+ * - Safari-compatible: uses lookahead instead of lookbehind for broader browser support
  */
 function parseMarkdown(text) {
-  if (!text || typeof text !== 'string') return text;
-
-  // Process markdown tokens and convert to React elements
-  // We need to handle multiple types of formatting that can nest or overlap
-  let currentIndex = 0;
-  let keyCounter = 0;
-
-  // Regex patterns for different markdown syntax (ordered by specificity)
-  const patterns = [
-    { regex: /\*\*(.*?)\*\*/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
-    { regex: /__(.*?)__/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
-    { regex: /`([^`]+)`/g, component: (content, key) => <code key={key} className="px-1.5 py-0.5 bg-gray-800 rounded text-sm text-cyan-400 font-mono">{content}</code> },
-    { regex: /\*((?!\s).*?(?<!\s))\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
-    { regex: /_((?!\s).*?(?<!\s))_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
-  ];
-
-  // Find all matches across all patterns
-  const allMatches = [];
-  patterns.forEach((pattern, patternIndex) => {
-    let match;
-    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
-    while ((match = regex.exec(text)) !== null) {
-      allMatches.push({
-        start: match.index,
-        end: regex.lastIndex,
-        content: match[1],
-        component: pattern.component,
-        patternIndex,
-      });
-    }
-  });
-
-  // Sort matches by start position, then by pattern priority (earlier patterns win)
-  allMatches.sort((a, b) => {
-    if (a.start !== b.start) return a.start - b.start;
-    return a.patternIndex - b.patternIndex;
-  });
-
-  // Remove overlapping matches (keep first one)
-  const validMatches = [];
-  let lastEnd = 0;
-  allMatches.forEach(match => {
-    if (match.start >= lastEnd) {
-      validMatches.push(match);
-      lastEnd = match.end;
-    }
-  });
-
-  // Build the result with React elements
-  const parts = [];
-  validMatches.forEach(match => {
-    // Add text before this match
-    if (match.start > currentIndex) {
-      parts.push(text.substring(currentIndex, match.start));
-    }
-    // Add the formatted element
-    parts.push(match.component(match.content, `md-${keyCounter++}`));
-    currentIndex = match.end;
-  });
-
-  // Add remaining text
-  if (currentIndex < text.length) {
-    parts.push(text.substring(currentIndex));
+  // Defensive typing: coerce non-string inputs to string instead of returning as-is
+  // This prevents accidentally rendering [object Object] if backend sends non-string data
+  if (!text) return text;
+  if (typeof text !== 'string') {
+    text = String(text);
   }
 
-  return parts.length > 0 ? parts : text;
+  // Split by double newlines to handle paragraph breaks
+  // Single newlines are preserved within paragraphs
+  const paragraphs = text.split(/\n\n+/);
+
+  // Process each paragraph separately
+  const processedParagraphs = paragraphs.map((paragraph, paragraphIndex) => {
+    // Process markdown tokens and convert to React elements
+    let currentIndex = 0;
+    let keyCounter = 0;
+
+    // Regex patterns for different markdown syntax (ordered by specificity)
+    const patterns = [
+      { regex: /\*\*(.*?)\*\*/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+      { regex: /__(.*?)__/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
+      { regex: /`([^`]+)`/g, component: (content, key) => <code key={key} className="px-1.5 py-0.5 bg-gray-800 rounded text-sm text-cyan-400 font-mono">{content}</code> },
+      { regex: /\*([^\s*](?:.*?[^\s*])?)\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+      { regex: /_([^\s_](?:.*?[^\s_])?)_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+    ];
+
+    // Find all matches across all patterns
+    const allMatches = [];
+    patterns.forEach((pattern, patternIndex) => {
+      let match;
+      const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+      while ((match = regex.exec(paragraph)) !== null) {
+        allMatches.push({
+          start: match.index,
+          end: regex.lastIndex,
+          content: match[1],
+          component: pattern.component,
+          patternIndex,
+        });
+      }
+    });
+
+    // Sort matches by start position, then by pattern priority (earlier patterns win)
+    allMatches.sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      return a.patternIndex - b.patternIndex;
+    });
+
+    // Remove overlapping matches (keep first one)
+    const validMatches = [];
+    let lastEnd = 0;
+    allMatches.forEach(match => {
+      if (match.start >= lastEnd) {
+        validMatches.push(match);
+        lastEnd = match.end;
+      }
+    });
+
+    // Build the result with React elements
+    const parts = [];
+    validMatches.forEach(match => {
+      // Add text before this match
+      if (match.start > currentIndex) {
+        parts.push(paragraph.substring(currentIndex, match.start));
+      }
+      // Add the formatted element
+      parts.push(match.component(match.content, `md-${paragraphIndex}-${keyCounter++}`));
+      currentIndex = match.end;
+    });
+
+    // Add remaining text
+    if (currentIndex < paragraph.length) {
+      parts.push(paragraph.substring(currentIndex));
+    }
+
+    return parts.length > 0 ? parts : paragraph;
+  });
+
+  // If we have multiple paragraphs, add <br /> separators between them
+  // Otherwise return the single paragraph result
+  if (processedParagraphs.length > 1) {
+    const result = [];
+    processedParagraphs.forEach((paragraph, index) => {
+      result.push(...(Array.isArray(paragraph) ? paragraph : [paragraph]));
+      // Add paragraph break between paragraphs (but not after the last one)
+      if (index < processedParagraphs.length - 1) {
+        result.push(<br key={`br-${index}`} />);
+        result.push(<br key={`br2-${index}`} />);
+      }
+    });
+    return result;
+  }
+
+  return processedParagraphs[0];
 }
 
 function RoastCard({ roast, index }) {
@@ -991,7 +1066,7 @@ function RoastCard({ roast, index }) {
           {roast.emoji}
         </motion.div>
         <div className="flex-1">
-          <h4 className="text-xl font-bold text-red-400 mb-2">{roast.title}</h4>
+          <h4 className="text-xl font-bold text-red-400 mb-2">{parseMarkdown(roast.title)}</h4>
           <p className="text-gray-300 leading-relaxed">{parseMarkdown(roast.content)}</p>
           {roast.severity && (
             <div className="mt-3 flex gap-1">

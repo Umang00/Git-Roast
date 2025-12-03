@@ -5,7 +5,7 @@ First off, thanks for taking the time to contribute! GitRoast is all about makin
 ## 🎯 Ways to Contribute
 
 ### 1. Add New Roasts 🔥
-The roasting engine is in `backend/roastEngine.js`. Add new patterns and roasts:
+The roasting engine is in `api/roastEngine.js`. Add new patterns and roasts:
 
 ```javascript
 if (stats.yourPattern) {
@@ -24,13 +24,13 @@ if (stats.yourPattern) {
 - Self-deprecating developer humor
 - Educational (hidden wisdom in the jokes)
 
-### 2. Improve Git Analysis 📊
-Enhance `backend/gitAnalyzer.js` to detect more patterns:
+### 2. Improve GitHub Analysis 📊
+Enhance `api/githubAnalyzer.js` to detect more patterns:
 - Code review response time
 - Branch naming conventions
-- Merge conflict frequency
+- Pull request patterns
 - Commit time patterns
-- Code churn analysis
+- Documentation quality analysis
 
 ### 3. Enhance the UI 🎨
 Make the frontend even more viral-worthy:
@@ -42,7 +42,9 @@ Make the frontend even more viral-worthy:
 
 ### 4. Add Features ✨
 Ideas for new features:
-- GitHub integration (analyze public repos by URL)
+- ✅ GitHub integration (analyze public repos by URL) - **DONE!**
+- ✅ AI-powered roasts with Google Gemini - **DONE!**
+- ✅ MCP Server integration - **DONE!**
 - Team roasting (compare multiple developers)
 - Historical tracking (roast your past self)
 - Custom roast templates

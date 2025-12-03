@@ -56,9 +56,11 @@ GitRoast is a **serverless full-stack web application** that analyzes GitHub rep
 {
   "runtime": "Node.js 20+ (ESM)",
   "platform": "Vercel Serverless Functions",
-  "ai": "Google Gemini 2.0 Flash (@google/generative-ai 0.21)",
-  "github": "Octokit REST API (@octokit/rest 21.0)",
-  "pdf": "@react-pdf/renderer 4.1",
+  "ai": "Google Gemini 2.5 Flash (@google/generative-ai 0.24)",
+  "github": "Octokit REST API (@octokit/rest 20.0)",
+  "pdf": "@react-pdf/renderer 4.3.1 (with React 18.3.1)",
+  "mcp": "Model Context Protocol SDK 1.23.0",
+  "validation": "Zod 4.1.13 (for MCP input validation)",
   "rateLimiting": "Bottleneck 2.19",
   "streaming": "Server-Sent Events (SSE)",
   "cors": "cors 2.8"
@@ -69,9 +71,11 @@ GitRoast is a **serverless full-stack web application** that analyzes GitHub rep
 - Serverless API endpoints
 - AI-powered content generation
 - Real-time streaming responses
-- PDF generation
+- PDF generation (server-side with React-PDF)
+- MCP Server for AI assistants (Claude Desktop)
 - Rate limiting & retry logic
 - GitHub API integration
+- Input validation (Zod)
 
 ### External APIs
 ```javascript
@@ -584,6 +588,136 @@ Response (application/pdf)
 │ Website URL                         │
 └─────────────────────────────────────┘
 ```
+
+---
+
+## MCP Server Architecture
+
+### Model Context Protocol Integration
+**File:** `api/mcp.ts`
+
+GitRoast exposes an MCP (Model Context Protocol) server that enables AI assistants like Claude Desktop to use roasting functionality as a tool.
+
+### Architecture Pattern: Stateless HTTP Transport
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Claude Desktop / MCP Client               │
+│  (or any MCP-compatible AI assistant)                       │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            │ HTTP POST /api/mcp
+                            │
+┌───────────────────────────▼─────────────────────────────────┐
+│               Vercel Serverless Function                     │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │   StreamableHTTPServerTransport (per-request)        │  │
+│  │   - Creates readable/writable streams                │  │
+│  │   - Handles JSON-RPC protocol                        │  │
+│  └─────────────────────┬────────────────────────────────┘  │
+│                        │                                     │
+│  ┌─────────────────────▼────────────────────────────────┐  │
+│  │   MCP Server Instance (ephemeral)                    │  │
+│  │   - name: "gitroast", version: "1.0.0"               │  │
+│  │   - Registered tool: roast_repo                      │  │
+│  │   - Zod validation for inputs                        │  │
+│  └─────────────────────┬────────────────────────────────┘  │
+│                        │                                     │
+│  ┌─────────────────────▼────────────────────────────────┐  │
+│  │   Tool Execution: roast_repo                         │  │
+│  │   1. Parse & validate input (Zod)                    │  │
+│  │   2. Call existing roast logic                       │  │
+│  │   3. Format as markdown                              │  │
+│  │   4. Embed AI assistant rules                        │  │
+│  └─────────────────────┬────────────────────────────────┘  │
+│                        │                                     │
+│  ┌─────────────────────▼────────────────────────────────┐  │
+│  │   Cleanup & Response                                 │  │
+│  │   - transport.close()                                │  │
+│  │   - Return complete roast markdown                   │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Decisions
+
+**1. Stateless Per-Request Pattern**
+```typescript
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Create fresh transport for each request
+  const transport = new StreamableHTTPServerTransport('api/mcp', readable, writable);
+  const server = new Server({ name: 'gitroast', version: '1.0.0' }, { capabilities: {} });
+
+  // Process request
+  await transport.start();
+
+  // Cleanup immediately
+  await transport.close();
+}
+```
+
+**Why?**
+- ✅ Vercel serverless functions are stateless by nature
+- ✅ No memory leaks from long-lived connections
+- ✅ Each request is independent
+- ✅ Fast cold starts
+
+**2. Tool Schema with Zod Validation**
+```typescript
+const roastRepoTool = {
+  name: 'roast_repo',
+  description: `Analyze a GitHub repository or user profile...`,
+  inputSchema: zodToJsonSchema(
+    z.object({
+      url: z.string().describe('GitHub repository (owner/repo) or username')
+    })
+  )
+};
+```
+
+**3. AI Assistant Control Instructions**
+
+Multi-layer approach to ensure complete roast display:
+- **Tool description:** `<CRITICAL_RULES_FOR_AI_ASSISTANTS>` block
+- **Response embedding:** `<AI_ASSISTANT_RULES>` in markdown output
+- **Explicit requirements:** Lists forbidden behaviors (summarizing, softening)
+
+### Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Transport** | StreamableHTTPServerTransport | Handles HTTP → Stream conversion |
+| **Protocol** | JSON-RPC 2.0 | MCP standard protocol |
+| **Validation** | Zod → JSON Schema | Input validation |
+| **Server SDK** | @modelcontextprotocol/sdk | MCP server implementation |
+| **Runtime** | TypeScript (Vercel) | Serverless execution |
+
+### Client Configuration
+
+**Claude Desktop Example:**
+```json
+{
+  "mcpServers": {
+    "gitroast": {
+      "url": "https://git-roast.vercel.app/api/mcp"
+    }
+  }
+}
+```
+
+**Connection Type:** Remote HTTP (no bridge, no stdio, no SSE)
+
+### Comparison: Web vs MCP
+
+| Aspect | Web Interface | MCP Server |
+|--------|--------------|------------|
+| **Protocol** | HTTP + SSE | HTTP + JSON-RPC |
+| **State** | Session-based | Stateless |
+| **Output** | Streaming chunks | Complete response |
+| **Format** | HTML/CSS | Markdown |
+| **Interactivity** | Buttons, forms | Text-only |
+| **PDF Export** | ✅ Yes | ❌ No |
+| **Client** | Browser | AI assistant |
 
 ---
 

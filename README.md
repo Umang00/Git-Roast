@@ -17,6 +17,17 @@
 
 ## 🆕 What's New in GitRoast 3.0
 
+### 🔌 **NEW: MCP Server Integration!**
+
+Use Git Roast directly in Claude Desktop and other MCP-compatible AI tools!
+
+- 🔌 **Model Context Protocol Server** - Access roasting functionality from any MCP client
+- 🤖 **Claude Desktop Integration** - Get roasts directly in Claude conversations
+- 🌐 **Remote HTTP Server** - Direct URL connection, no bridge needed
+- 📊 **Profile & Repo Analysis** - Roast repositories or entire GitHub profiles
+- 🔥 **Unfiltered Output** - AI displays complete, savage roasts verbatim
+- 📖 **Full Documentation** - [MCP Setup Guide](docs/MCP_SETUP.md)
+
 ### 🤖 **AI-POWERED ROASTS with Google Gemini!**
 
 - 🤖 **Google Gemini AI Integration** - Dynamic, personalized roasts based on YOUR actual code patterns!
@@ -35,7 +46,7 @@
 - 🌍 **Roast Famous Repos** - Try `torvalds/linux`, `facebook/react`, `microsoft/vscode`
 - 📈 **Higher Viral Potential** - AI-powered roasts are WAY more shareable!
 
-**Deploy Now:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - One-click setup guide!
+**Deploy Now:** [VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) - One-click setup guide!
 
 ---
 
@@ -101,6 +112,12 @@ Get graded on your git habits:
 - **C** - Mediocre with a capital M
 - **D** - Yikes, do better
 - **F** - Crime scene level code
+
+### 📄 PDF Export
+- **Download Complete Report** - Export your roast as a professionally formatted PDF
+- **Profile Analysis Included** - For GitHub profile roasts, includes analyzed repos and statistics
+- **Full Roast Details** - Grade, statistics, roasts, achievements, and suggestions
+- **Share Offline** - Perfect for sharing or archiving your roast
 
 ---
 
@@ -205,17 +222,25 @@ gitroast/
 ├── api/                        # Vercel Serverless Functions ⚡
 │   ├── roast.js               # Main roast API endpoint (AI + fallback)
 │   ├── roast-stream.js        # Streaming roast API with SSE
-│   ├── generate-pdf.js        # PDF generation endpoint 📄
+│   ├── mcp.ts                 # MCP Server endpoint 🔌
+│   ├── generate-pdf.js        # PDF generation API endpoint 📄
+│   ├── pdfGenerator.js        # PDF document generator with React-PDF
 │   ├── aiRoastGenerator.js    # Google Gemini AI integration 🤖
-│   ├── pdfGenerator.js        # React-PDF document generator
 │   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
 │   └── roastEngine.js         # Template-based roasting (fallback) 🔥
 │
+├── docs/                       # Documentation 📚
+│   ├── MCP_SETUP.md           # MCP Server setup guide
+│   ├── VERCEL_DEPLOYMENT.md   # One-click Vercel deployment guide
+│   ├── DEPLOYMENT.md          # Multi-platform deployment guide
+│   ├── QUICKSTART.md          # Quick start guide
+│   ├── CONTRIBUTING.md        # Contribution guidelines
+│   └── VIRAL_MARKETING.md     # Marketing and growth strategies
+│
 ├── .env                        # Environment variables (create this!)
-├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
-├── DEPLOYMENT.md              # Multi-platform deployment guide
+├── tsconfig.json              # TypeScript configuration
 ├── vercel.json                # Vercel configuration
 ├── package.json               # Root package with scripts
 └── README.md                  # You are here!
@@ -272,6 +297,7 @@ git@github.com:facebook/react.git
 - **Bottleneck** - Rate limiting & retry logic with exponential backoff
 - **GitHub REST API (@octokit/rest)** - Repository data fetching
 - **Server-Sent Events (SSE)** - Real-time streaming responses
+- **@react-pdf/renderer** - Server-side PDF generation
 - **CORS** - Cross-origin support
 
 ---
@@ -308,6 +334,27 @@ colors: {
 ---
 
 ## 📊 API Endpoints
+
+### `POST /api/mcp` (NEW! 🔌)
+MCP Server endpoint for AI assistants
+
+**Purpose:** Model Context Protocol server providing the `roast_repo` tool for Claude Desktop and other MCP clients.
+
+**Configuration:** Remote HTTP server - configure with URL: `https://your-app.vercel.app/api/mcp`
+
+**Setup:** See [MCP Setup Guide](docs/MCP_SETUP.md) for detailed configuration instructions.
+
+**Tool:** `roast_repo`
+- **Input:** `url` (string)
+  - Repository: `"owner/repo"` or `"https://github.com/owner/repo"`
+  - Profile: `"username"` (analyzes all public repos)
+- **Output:** Formatted markdown roast report with:
+  - Grade (A+ to F)
+  - Statistics (commits, patterns, etc.)
+  - AI-generated roasts
+  - Achievements
+  - Suggestions
+- **AI Integration:** Uses Google Gemini AI with template fallback
 
 ### `POST /api/roast-stream` (NEW! ⚡)
 AI-powered streaming roast with real-time response
@@ -365,33 +412,33 @@ Analyze a GitHub repository and get roasted (non-streaming fallback)
 ```
 
 ### `POST /api/generate-pdf` (NEW! 📄)
-Generate and download PDF report
+Generate a PDF report of the roast results
 
 **Request:**
 ```json
 {
-  // Full roastData object
-  "grade": "B",
-  "gradeDescription": "...",
-  "stats": { ... },
-  "roasts": [ ... ],
-  "achievements": [ ... ],
-  "suggestions": [ ... ],
-  "repository": { ... }
+  "grade": "A",
+  "gradeDescription": "Pretty solid developer",
+  "stats": {...},
+  "roasts": [...],
+  "achievements": [...],
+  "suggestions": [...],
+  "repository": {...},
+  "analysisType": "repo" or "profile"
 }
 ```
 
-**Response:**
-- Binary PDF file
+**Response:** Binary PDF file (application/pdf)
 - Content-Type: application/pdf
 - Filename: GitRoast-{repoName}.pdf
 
 **Features:**
-- Professional document layout
-- All roasts and statistics included
-- Plain text (no markdown artifacts)
+- Professional PDF formatting with React-PDF
+- Includes all roast data: grade, stats, roasts, achievements, suggestions
+- Profile analysis section for GitHub profile roasts
+- Markdown formatting stripped for clean text
 - Severity indicators visualized
-- Shareable offline format
+- Downloadable via browser
 
 ### `GET /api/health`
 Check if the API is running
@@ -420,7 +467,7 @@ Check if the API is running
 
 **Total time:** ~5 minutes | **Cost:** $0/month
 
-👉 **Full guide:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Complete Vercel setup instructions!
+👉 **Full guide:** [VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) - Complete Vercel setup instructions!
 
 ---
 
@@ -440,7 +487,7 @@ For local repository analysis (legacy):
 
 **Total time:** ~15 minutes | **Cost:** $0-5/month
 
-👉 **Full guide:** [DEPLOYMENT.md](./DEPLOYMENT.md) - Multi-platform deployment options
+👉 **Full guide:** [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Multi-platform deployment options
 
 ---
 
