@@ -351,6 +351,13 @@ Try it: ${websiteUrl}
     return () => clearTimeout(timer)
   }, [linkedInCopied])
 
+  // Cleanup timer for PDF error state
+  useEffect(() => {
+    if (!pdfError) return
+    const timer = setTimeout(() => setPdfError(''), 5000)
+    return () => clearTimeout(timer)
+  }, [pdfError])
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -860,7 +867,9 @@ Try it: ${websiteUrl}
         </AnimatePresence>
 
         {/* MCP Integration Section - Shows after input, pushed down when results appear */}
-        <MCPIntegration />
+        <div className="mt-16">
+          <MCPIntegration />
+        </div>
 
         {/* Footer */}
         <motion.div
@@ -914,8 +923,8 @@ function parseMarkdown(text) {
     { regex: /\*\*(.*?)\*\*/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
     { regex: /__(.*?)__/g, component: (content, key) => <strong key={key} className="font-bold text-white">{content}</strong> },
     { regex: /`([^`]+)`/g, component: (content, key) => <code key={key} className="px-1.5 py-0.5 bg-gray-800 rounded text-sm text-cyan-400 font-mono">{content}</code> },
-    { regex: /\*((?!\s).*?(?<!\s))\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
-    { regex: /_((?!\s).*?(?<!\s))_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+    { regex: /\*([^\s*](?:.*?[^\s*])?)\*/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
+    { regex: /_([^\s_](?:.*?[^\s_])?)_/g, component: (content, key) => <em key={key} className="italic text-gray-200">{content}</em> },
   ];
 
   // Find all matches across all patterns
