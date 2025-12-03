@@ -33,6 +33,7 @@ Use Git Roast directly in Claude Desktop and other MCP-compatible AI tools!
 - 🤖 **Google Gemini AI Integration** - Dynamic, personalized roasts based on YOUR actual code patterns!
 - ⚡ **Real-time Streaming Responses** - Watch your roast being generated live, word by word!
 - 📱 **Enhanced Social Sharing** - Share to Twitter, LinkedIn, or copy to clipboard with one click!
+- 📄 **PDF Export** - Download professional PDF reports with all your roasts and statistics!
 - 🎯 **Profile-Wide Analysis** - Roast entire GitHub profiles, not just single repos!
 - 📊 **Comprehensive Analysis** - README quality, commit patterns, documentation, repo metadata!
 - 💀 **BRUTALLY HONEST** - Gordon Ramsay-level savage roasts that reference your actual stats!
@@ -222,13 +223,13 @@ gitroast/
 │   ├── roast.js               # Main roast API endpoint (AI + fallback)
 │   ├── roast-stream.js        # Streaming roast API with SSE
 │   ├── mcp.ts                 # MCP Server endpoint 🔌
+│   ├── generate-pdf.js        # PDF generation API endpoint 📄
+│   ├── pdfGenerator.js        # PDF document generator with React-PDF
 │   ├── aiRoastGenerator.js    # Google Gemini AI integration 🤖
 │   ├── retryUtils.js          # Retry logic with bottleneck
 │   ├── health.js              # Health check endpoint
 │   ├── githubAnalyzer.js      # GitHub API integration
-│   ├── roastEngine.js         # Template-based roasting (fallback) 🔥
-│   ├── generate-pdf.js        # PDF generation API endpoint 📄
-│   └── pdfGenerator.js        # PDF document generator with React-PDF
+│   └── roastEngine.js         # Template-based roasting (fallback) 🔥
 │
 ├── docs/                       # Documentation 📚
 │   ├── MCP_SETUP.md           # MCP Server setup guide
@@ -292,6 +293,7 @@ git@github.com:facebook/react.git
 - **Node.js (ESM)** - Runtime with module support
 - **Vercel Serverless Functions** - Scalable API endpoints
 - **Google Gemini AI (gemini-2.5-flash)** - AI-powered roast generation
+- **@react-pdf/renderer** - Server-side PDF generation
 - **Bottleneck** - Rate limiting & retry logic with exponential backoff
 - **GitHub REST API (@octokit/rest)** - Repository data fetching
 - **Server-Sent Events (SSE)** - Real-time streaming responses
@@ -427,12 +429,15 @@ Generate a PDF report of the roast results
 ```
 
 **Response:** Binary PDF file (application/pdf)
+- Content-Type: application/pdf
+- Filename: GitRoast-{repoName}.pdf
 
 **Features:**
 - Professional PDF formatting with React-PDF
 - Includes all roast data: grade, stats, roasts, achievements, suggestions
 - Profile analysis section for GitHub profile roasts
 - Markdown formatting stripped for clean text
+- Severity indicators visualized
 - Downloadable via browser
 
 ### `GET /api/health`
@@ -557,6 +562,20 @@ If GitRoast roasted you good, give it a ⭐ star!
 
 **The Message Minimalist**
 "Your shortest commit message was 'f'. Stunning. Brave. Completely useless."
+
+---
+
+## 📚 Documentation
+
+Comprehensive documentation is available for developers:
+
+- **[IMPLEMENTATION_LOGIC.md](./IMPLEMENTATION_LOGIC.md)** - Detailed explanation of roasting logic, data collection, AI integration, and algorithms
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Complete technology stack, system architecture, and design decisions
+- **[USER_FLOW.md](./USER_FLOW.md)** - User journey diagrams, flow charts, and interaction patterns
+- **[VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)** - One-click deployment guide for Vercel
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Multi-platform deployment options
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Guidelines for contributors
+- **[QUICKSTART.md](./QUICKSTART.md)** - Quick setup guide
 
 ---
 

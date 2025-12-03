@@ -26,7 +26,6 @@ function App() {
   // Refs to track timeouts for cleanup
   const linkedInTimeoutRef = useRef(null)
   const confettiTimeoutRef = useRef(null)
-  const resultsRef = useRef(null)
 
   const analyzeRepo = async () => {
     if (!repoUrl.trim()) {
@@ -642,7 +641,6 @@ Try it: ${websiteUrl}
         <AnimatePresence>
           {roastData && (
             <motion.div
-              ref={resultsRef}
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -728,7 +726,7 @@ Try it: ${websiteUrl}
                     whileTap={{ scale: downloadingPDF ? 1 : 0.95 }}
                   >
                     <Download className="w-5 h-5" />
-                    {downloadingPDF ? 'Generating PDF...' : 'Download Full Roast'}
+                    {downloadingPDF ? 'Generating PDF...' : 'Download PDF'}
                   </motion.button>
                 </div>
 
