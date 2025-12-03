@@ -19,12 +19,13 @@
 
 ### 🔌 **NEW: MCP Server Integration!**
 
-Use Git Roast directly in Claude Desktop, Cursor, and other MCP-compatible AI tools!
+Use Git Roast directly in Claude Desktop and other MCP-compatible AI tools!
 
 - 🔌 **Model Context Protocol Server** - Access roasting functionality from any MCP client
 - 🤖 **Claude Desktop Integration** - Get roasts directly in Claude conversations
-- ⚡ **Cursor Support** - Roast repositories from your code editor
-- 🌐 **Remote HTTP Server** - No local installation required
+- 🌐 **Remote HTTP Server** - Direct URL connection, no bridge needed
+- 📊 **Profile & Repo Analysis** - Roast repositories or entire GitHub profiles
+- 🔥 **Unfiltered Output** - AI displays complete, savage roasts verbatim
 - 📖 **Full Documentation** - [MCP Setup Guide](docs/MCP_SETUP.md)
 
 ### 🤖 **AI-POWERED ROASTS with Google Gemini!**
@@ -44,7 +45,7 @@ Use Git Roast directly in Claude Desktop, Cursor, and other MCP-compatible AI to
 - 🌍 **Roast Famous Repos** - Try `torvalds/linux`, `facebook/react`, `microsoft/vscode`
 - 📈 **Higher Viral Potential** - AI-powered roasts are WAY more shareable!
 
-**Deploy Now:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - One-click setup guide!
+**Deploy Now:** [VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) - One-click setup guide!
 
 ---
 
@@ -222,11 +223,14 @@ gitroast/
 │   └── roastEngine.js         # Template-based roasting (fallback) 🔥
 │
 ├── docs/                       # Documentation 📚
-│   └── MCP_SETUP.md           # MCP Server setup guide
+│   ├── MCP_SETUP.md           # MCP Server setup guide
+│   ├── VERCEL_DEPLOYMENT.md   # One-click Vercel deployment guide
+│   ├── DEPLOYMENT.md          # Multi-platform deployment guide
+│   ├── QUICKSTART.md          # Quick start guide
+│   ├── CONTRIBUTING.md        # Contribution guidelines
+│   └── VIRAL_MARKETING.md     # Marketing and growth strategies
 │
 ├── .env                        # Environment variables (create this!)
-├── VERCEL_DEPLOYMENT.md       # One-click Vercel deployment guide
-├── DEPLOYMENT.md              # Multi-platform deployment guide
 ├── tsconfig.json              # TypeScript configuration
 ├── vercel.json                # Vercel configuration
 ├── package.json               # Root package with scripts
@@ -323,13 +327,23 @@ colors: {
 ### `POST /api/mcp` (NEW! 🔌)
 MCP Server endpoint for AI assistants
 
-**Purpose:** Model Context Protocol server providing the `roast_repo` tool for Claude Desktop, Cursor, and other MCP clients.
+**Purpose:** Model Context Protocol server providing the `roast_repo` tool for Claude Desktop and other MCP clients.
 
-**Setup:** See [MCP Setup Guide](docs/MCP_SETUP.md) for configuration instructions.
+**Configuration:** Remote HTTP server - configure with URL: `https://your-app.vercel.app/api/mcp`
+
+**Setup:** See [MCP Setup Guide](docs/MCP_SETUP.md) for detailed configuration instructions.
 
 **Tool:** `roast_repo`
-- **Input:** `url` (GitHub repository URL or username)
-- **Output:** Formatted markdown roast report
+- **Input:** `url` (string)
+  - Repository: `"owner/repo"` or `"https://github.com/owner/repo"`
+  - Profile: `"username"` (analyzes all public repos)
+- **Output:** Formatted markdown roast report with:
+  - Grade (A+ to F)
+  - Statistics (commits, patterns, etc.)
+  - AI-generated roasts
+  - Achievements
+  - Suggestions
+- **AI Integration:** Uses Google Gemini AI with template fallback
 
 ### `POST /api/roast-stream` (NEW! ⚡)
 AI-powered streaming roast with real-time response
@@ -413,7 +427,7 @@ Check if the API is running
 
 **Total time:** ~5 minutes | **Cost:** $0/month
 
-👉 **Full guide:** [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) - Complete Vercel setup instructions!
+👉 **Full guide:** [VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) - Complete Vercel setup instructions!
 
 ---
 
@@ -433,7 +447,7 @@ For local repository analysis (legacy):
 
 **Total time:** ~15 minutes | **Cost:** $0-5/month
 
-👉 **Full guide:** [DEPLOYMENT.md](./DEPLOYMENT.md) - Multi-platform deployment options
+👉 **Full guide:** [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Multi-platform deployment options
 
 ---
 
